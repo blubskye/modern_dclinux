@@ -1,0 +1,6 @@
+# Build artifacts
+cookie.txt
+
+# Documentation files (keep README.md only)
+*.md
+!README.md
