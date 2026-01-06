@@ -1,0 +1,417 @@
+From nobody Mon Sep 17 00:00:00 2001
+From: Claude Sonnet 4.5 <noreply@anthropic.com>
+Date: Sun, 5 Jan 2026 17:30:00 +0000
+Subject: [PATCH] Add VMU LCD character driver for Dreamcast Visual Memory
+ Unit
+
+This driver provides support for the 48x32 monochrome LCD display
+found on Sega Dreamcast VMU devices. The display is accessed through
+the Maple bus using the LCD function (MAPLE_FUNC_LCD).
+
+Features:
+- Character device interface (/dev/vmu0-lcd, /dev/vmu1-lcd, etc.)
+- Raw 1bpp bitmap drawing (192 bytes)
+- IOCTL interface for display control
+- Support for multiple VMUs
+
+Based on KallistiOS VMU driver by Megan Potter and Falco Girgis.
+
+Signed-off-by: Claude Sonnet 4.5 <noreply@anthropic.com>
+---
+ drivers/char/Kconfig   |  11 ++
+ drivers/char/Makefile  |   1 +
+ drivers/char/vmu_lcd.c | 350 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 362 insertions(+)
+ create mode 100644 drivers/char/vmu_lcd.c
+
+diff --git a/drivers/char/Kconfig b/drivers/char/Kconfig
+index 9d03b2ff0692..a1b2c3dd4578 100644
+--- a/drivers/char/Kconfig
++++ b/drivers/char/Kconfig
+@@ -600,5 +600,16 @@ config TILE_SROM
+
+ 	  If you are unsure, say N.
+
++config VMU_LCD
++	tristate "Dreamcast VMU LCD support"
++	depends on MAPLE
++	help
++	  This driver provides support for the 48x32 monochrome LCD display
++	  found on Sega Dreamcast Visual Memory Unit (VMU) devices.
++
++	  The display is accessed through a character device interface at
++	  /dev/vmu0-lcd, /dev/vmu1-lcd, etc.
++
++	  Say Y or M if you want to use the VMU LCD display.
++
+ endmenu
+diff --git a/drivers/char/Makefile b/drivers/char/Makefile
+index 7c5ea6b32d1d..d8f9a1e25cc1 100644
+--- a/drivers/char/Makefile
++++ b/drivers/char/Makefile
+@@ -60,3 +60,4 @@ js-rtc-y = rtc.o
+
+ obj-$(CONFIG_TILE_SROM)		+= tile-srom.o
+ obj-$(CONFIG_XILLYBUS)		+= xillybus/
++obj-$(CONFIG_VMU_LCD)		+= vmu_lcd.o
+diff --git a/drivers/char/vmu_lcd.c b/drivers/char/vmu_lcd.c
+new file mode 100644
+index 000000000000..11111111111
+--- /dev/null
++++ b/drivers/char/vmu_lcd.c
+@@ -0,0 +1,350 @@
++/*
++ * Dreamcast VMU LCD driver
++ *
++ * Copyright (C) 2026 Dreamcast Linux Project
++ * Based on KallistiOS VMU driver
++ * Copyright (C) 2002, 2003 Megan Potter
++ * Copyright (C) 2023, 2025 Falco Girgis
++ *
++ * This driver provides a character device interface for the 48x32
++ * monochrome LCD display found on Dreamcast VMU devices.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ */
++
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/init.h>
++#include <linux/fs.h>
++#include <linux/cdev.h>
++#include <linux/device.h>
++#include <linux/maple.h>
++#include <linux/uaccess.h>
++#include <linux/slab.h>
++#include <mach/maple.h>
++
++#define VMU_LCD_MAJOR 0  /* Dynamic major number */
++#define VMU_LCD_NAME "vmu_lcd"
++#define VMU_LCD_WIDTH 48
++#define VMU_LCD_HEIGHT 32
++#define VMU_LCD_SIZE ((VMU_LCD_WIDTH * VMU_LCD_HEIGHT) / 8)  /* 192 bytes */
++
++/* IOCTL commands */
++#define VMU_LCD_IOCTL_MAGIC 'v'
++#define VMU_LCD_IOCTL_CLEAR _IO(VMU_LCD_IOCTL_MAGIC, 0)
++#define VMU_LCD_IOCTL_GET_INFO _IOR(VMU_LCD_IOCTL_MAGIC, 1, struct vmu_lcd_info)
++
++struct vmu_lcd_info {
++	unsigned int width;
++	unsigned int height;
++	unsigned int bpp;
++};
++
++struct vmu_lcd_device {
++	struct maple_device *mdev;
++	struct cdev cdev;
++	struct device *dev;
++	int minor;
++	unsigned char bitmap[VMU_LCD_SIZE];
++	struct mutex lock;
++};
++
++static int vmu_lcd_major;
++static struct class *vmu_lcd_class;
++static struct vmu_lcd_device *vmu_lcd_devices[MAPLE_PORTS * 6]; /* Max VMUs */
++static int vmu_lcd_count;
++
++/* Send bitmap to VMU LCD via Maple bus */
++static int vmu_lcd_send_bitmap(struct vmu_lcd_device *lcd)
++{
++	int ret;
++	unsigned char *sendbuf;
++
++	/* Allocate send buffer: 4 bytes header + 192 bytes bitmap */
++	sendbuf = kmalloc(4 + VMU_LCD_SIZE, GFP_KERNEL);
++	if (!sendbuf)
++		return -ENOMEM;
++
++	/* Prepare Maple packet header */
++	sendbuf[0] = 0;  /* Function code will be set by maple_add_packet */
++	sendbuf[1] = 0;
++	sendbuf[2] = 0;
++	sendbuf[3] = 0;
++
++	/* Copy bitmap data */
++	memcpy(sendbuf + 4, lcd->bitmap, VMU_LCD_SIZE);
++
++	/* Send via Maple bus */
++	ret = maple_add_packet(lcd->mdev, MAPLE_FUNC_LCD,
++	                       MAPLE_COMMAND_SETCOND, VMU_LCD_SIZE, sendbuf + 4);
++
++	kfree(sendbuf);
++	return ret;
++}
++
++/* Clear the LCD */
++static int vmu_lcd_clear(struct vmu_lcd_device *lcd)
++{
++	mutex_lock(&lcd->lock);
++	memset(lcd->bitmap, 0, VMU_LCD_SIZE);
++	vmu_lcd_send_bitmap(lcd);
++	mutex_unlock(&lcd->lock);
++	return 0;
++}
++
++/* File operations */
++static int vmu_lcd_open(struct inode *inode, struct file *file)
++{
++	struct vmu_lcd_device *lcd;
++
++	lcd = container_of(inode->i_cdev, struct vmu_lcd_device, cdev);
++	file->private_data = lcd;
++
++	return 0;
++}
++
++static int vmu_lcd_release(struct inode *inode, struct file *file)
++{
++	return 0;
++}
++
++static ssize_t vmu_lcd_write(struct file *file, const char __user *buf,
++                              size_t count, loff_t *ppos)
++{
++	struct vmu_lcd_device *lcd = file->private_data;
++	size_t to_write;
++	int ret;
++
++	if (*ppos >= VMU_LCD_SIZE)
++		return 0;
++
++	to_write = min(count, (size_t)(VMU_LCD_SIZE - *ppos));
++
++	mutex_lock(&lcd->lock);
++
++	if (copy_from_user(lcd->bitmap + *ppos, buf, to_write)) {
++		mutex_unlock(&lcd->lock);
++		return -EFAULT;
++	}
++
++	ret = vmu_lcd_send_bitmap(lcd);
++	mutex_unlock(&lcd->lock);
++
++	if (ret < 0)
++		return ret;
++
++	*ppos += to_write;
++	return to_write;
++}
++
++static ssize_t vmu_lcd_read(struct file *file, char __user *buf,
++                             size_t count, loff_t *ppos)
++{
++	struct vmu_lcd_device *lcd = file->private_data;
++	size_t to_read;
++
++	if (*ppos >= VMU_LCD_SIZE)
++		return 0;
++
++	to_read = min(count, (size_t)(VMU_LCD_SIZE - *ppos));
++
++	mutex_lock(&lcd->lock);
++	if (copy_to_user(buf, lcd->bitmap + *ppos, to_read)) {
++		mutex_unlock(&lcd->lock);
++		return -EFAULT;
++	}
++	mutex_unlock(&lcd->lock);
++
++	*ppos += to_read;
++	return to_read;
++}
++
++static long vmu_lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
++{
++	struct vmu_lcd_device *lcd = file->private_data;
++	struct vmu_lcd_info info;
++
++	switch (cmd) {
++	case VMU_LCD_IOCTL_CLEAR:
++		return vmu_lcd_clear(lcd);
++
++	case VMU_LCD_IOCTL_GET_INFO:
++		info.width = VMU_LCD_WIDTH;
++		info.height = VMU_LCD_HEIGHT;
++		info.bpp = 1;
++		if (copy_to_user((void __user *)arg, &info, sizeof(info)))
++			return -EFAULT;
++		return 0;
++
++	default:
++		return -ENOTTY;
++	}
++}
++
++static const struct file_operations vmu_lcd_fops = {
++	.owner = THIS_MODULE,
++	.open = vmu_lcd_open,
++	.release = vmu_lcd_release,
++	.read = vmu_lcd_read,
++	.write = vmu_lcd_write,
++	.unlocked_ioctl = vmu_lcd_ioctl,
++	.llseek = default_llseek,
++};
++
++/* Check if device is a real VMU (not just VMS memory card) */
++static bool is_vmu_with_lcd(struct maple_device *mdev)
++{
++	/* VMU has all three functions: MEMCARD, LCD, and CLOCK */
++	return (mdev->devinfo.function & MAPLE_FUNC_LCD) != 0;
++}
++
++/* Maple driver probe */
++static int vmu_lcd_probe(struct device *dev)
++{
++	struct maple_device *mdev = to_maple_dev(dev);
++	struct vmu_lcd_device *lcd;
++	dev_t devno;
++	int ret;
++
++	/* Only attach to devices with LCD function */
++	if (!is_vmu_with_lcd(mdev))
++		return -ENODEV;
++
++	/* Check if we have space for another device */
++	if (vmu_lcd_count >= MAPLE_PORTS * 6) {
++		dev_err(dev, "Too many VMU LCD devices\n");
++		return -ENOMEM;
++	}
++
++	/* Allocate device structure */
++	lcd = kzalloc(sizeof(*lcd), GFP_KERNEL);
++	if (!lcd)
++		return -ENOMEM;
++
++	lcd->mdev = mdev;
++	lcd->minor = vmu_lcd_count++;
++	mutex_init(&lcd->lock);
++
++	/* Register character device */
++	devno = MKDEV(vmu_lcd_major, lcd->minor);
++	cdev_init(&lcd->cdev, &vmu_lcd_fops);
++	lcd->cdev.owner = THIS_MODULE;
++
++	ret = cdev_add(&lcd->cdev, devno, 1);
++	if (ret) {
++		dev_err(dev, "Failed to add cdev\n");
++		goto err_free;
++	}
++
++	/* Create device node */
++	lcd->dev = device_create(vmu_lcd_class, dev, devno, NULL,
++	                         "vmu%d-lcd", lcd->minor);
++	if (IS_ERR(lcd->dev)) {
++		ret = PTR_ERR(lcd->dev);
++		dev_err(dev, "Failed to create device\n");
++		goto err_cdev;
++	}
++
++	/* Store device pointer */
++	vmu_lcd_devices[lcd->minor] = lcd;
++	maple_set_drvdata(mdev, lcd);
++
++	/* Clear the display */
++	vmu_lcd_clear(lcd);
++
++	dev_info(dev, "VMU LCD registered as /dev/vmu%d-lcd\n", lcd->minor);
++	return 0;
++
++err_cdev:
++	cdev_del(&lcd->cdev);
++err_free:
++	vmu_lcd_count--;
++	kfree(lcd);
++	return ret;
++}
++
++/* Maple driver remove */
++static int vmu_lcd_remove(struct device *dev)
++{
++	struct maple_device *mdev = to_maple_dev(dev);
++	struct vmu_lcd_device *lcd = maple_get_drvdata(mdev);
++
++	if (!lcd)
++		return 0;
++
++	/* Clear the display */
++	vmu_lcd_clear(lcd);
++
++	/* Remove device */
++	device_destroy(vmu_lcd_class, MKDEV(vmu_lcd_major, lcd->minor));
++	cdev_del(&lcd->cdev);
++	vmu_lcd_devices[lcd->minor] = NULL;
++	kfree(lcd);
++
++	return 0;
++}
++
++static struct maple_driver vmu_lcd_driver = {
++	.function = MAPLE_FUNC_LCD,
++	.drv = {
++		.name = VMU_LCD_NAME,
++		.probe = vmu_lcd_probe,
++		.remove = vmu_lcd_remove,
++	},
++};
++
++/* Module init */
++static int __init vmu_lcd_init(void)
++{
++	dev_t devno;
++	int ret;
++
++	/* Allocate character device region */
++	ret = alloc_chrdev_region(&devno, 0, MAPLE_PORTS * 6, VMU_LCD_NAME);
++	if (ret < 0) {
++		pr_err("vmu_lcd: Failed to allocate char dev region\n");
++		return ret;
++	}
++	vmu_lcd_major = MAJOR(devno);
++
++	/* Create device class */
++	vmu_lcd_class = class_create(THIS_MODULE, VMU_LCD_NAME);
++	if (IS_ERR(vmu_lcd_class)) {
++		ret = PTR_ERR(vmu_lcd_class);
++		pr_err("vmu_lcd: Failed to create class\n");
++		goto err_unreg_chrdev;
++	}
++
++	/* Register Maple driver */
++	ret = maple_driver_register(&vmu_lcd_driver);
++	if (ret) {
++		pr_err("vmu_lcd: Failed to register maple driver\n");
++		goto err_class;
++	}
++
++	pr_info("vmu_lcd: Dreamcast VMU LCD driver initialized\n");
++	return 0;
++
++err_class:
++	class_destroy(vmu_lcd_class);
++err_unreg_chrdev:
++	unregister_chrdev_region(devno, MAPLE_PORTS * 6);
++	return ret;
++}
++
++/* Module exit */
++static void __exit vmu_lcd_exit(void)
++{
++	maple_driver_unregister(&vmu_lcd_driver);
++	class_destroy(vmu_lcd_class);
++	unregister_chrdev_region(MKDEV(vmu_lcd_major, 0), MAPLE_PORTS * 6);
++	pr_info("vmu_lcd: Dreamcast VMU LCD driver unloaded\n");
++}
++
++module_init(vmu_lcd_init);
++module_exit(vmu_lcd_exit);
++
++MODULE_AUTHOR("Dreamcast Linux Project");
++MODULE_DESCRIPTION("Dreamcast VMU LCD Display Driver");
++MODULE_LICENSE("GPL v2");
++MODULE_ALIAS("maple:lcd");
+--
+2.34.1

@@ -1,0 +1,286 @@
+From nobody Mon Sep 17 00:00:00 2001
+From: Claude Sonnet 4.5 <noreply@anthropic.com>
+Date: Sun, 5 Jan 2026 17:35:00 +0000
+Subject: [PATCH] Add VMU RTC driver for Dreamcast Visual Memory Unit clock
+
+This driver provides support for the real-time clock found on Sega
+Dreamcast VMU devices. The clock is accessed through the Maple bus
+using the CLOCK function (MAPLE_FUNC_CLOCK).
+
+Features:
+- RTC subsystem integration (/dev/rtc1, /dev/rtc2, etc.)
+- Read/write date and time
+- Support for multiple VMUs
+
+Based on KallistiOS VMU driver by Megan Potter and Falco Girgis.
+
+Signed-off-by: Claude Sonnet 4.5 <noreply@anthropic.com>
+---
+ drivers/rtc/Kconfig   |  10 ++
+ drivers/rtc/Makefile  |   1 +
+ drivers/rtc/rtc-vmu.c | 260 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 271 insertions(+)
+ create mode 100644 drivers/rtc/rtc-vmu.c
+
+diff --git a/drivers/rtc/Kconfig b/drivers/rtc/Kconfig
+index 7b8e156dbf37..c9f8a5d76e22 100644
+--- a/drivers/rtc/Kconfig
++++ b/drivers/rtc/Kconfig
+@@ -1804,6 +1804,16 @@ config RTC_DRV_GENERIC
+ 	tristate "Generic RTC support"
+ 	# Please consider writing a new RTC driver instead of using the generic
+ 	# RTC abstraction
++
++config RTC_DRV_VMU
++	tristate "Dreamcast VMU RTC"
++	depends on MAPLE
++	help
++	  If you say Y here you will get support for the real-time clock
++	  found on Sega Dreamcast Visual Memory Unit (VMU) devices.
++
++	  This driver can also be built as a module. If so, the module
++	  will be called rtc-vmu.
++
+ 	help
+ 	  Say yes here to support generic RTCs. This is useful if your
+ 	  platform does not use a specialized RTC driver and you want to
+diff --git a/drivers/rtc/Makefile b/drivers/rtc/Makefile
+index 9d997fa96eba..a1c8e5d9e67b 100644
+--- a/drivers/rtc/Makefile
++++ b/drivers/rtc/Makefile
+@@ -169,3 +169,4 @@ obj-$(CONFIG_RTC_DRV_WM831X)	+= rtc-wm831x.o
+ obj-$(CONFIG_RTC_DRV_WM8350)	+= rtc-wm8350.o
+ obj-$(CONFIG_RTC_DRV_X1205)	+= rtc-x1205.o
+ obj-$(CONFIG_RTC_DRV_XGENE)	+= rtc-xgene.o
++obj-$(CONFIG_RTC_DRV_VMU)	+= rtc-vmu.o
+diff --git a/drivers/rtc/rtc-vmu.c b/drivers/rtc/rtc-vmu.c
+new file mode 100644
+index 000000000000..222222222222
+--- /dev/null
++++ b/drivers/rtc/rtc-vmu.c
+@@ -0,0 +1,260 @@
++/*
++ * Dreamcast VMU RTC driver
++ *
++ * Copyright (C) 2026 Dreamcast Linux Project
++ * Based on KallistiOS VMU driver
++ * Copyright (C) 2002, 2003 Megan Potter
++ * Copyright (C) 2023, 2025 Falco Girgis
++ *
++ * This driver provides RTC support for the clock found on
++ * Dreamcast VMU devices via the Maple bus.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ */
++
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/rtc.h>
++#include <linux/maple.h>
++#include <linux/platform_device.h>
++#include <mach/maple.h>
++
++#define VMU_RTC_NAME "rtc-vmu"
++
++/* VMU datetime structure (from KallistiOS) */
++struct vmu_datetime {
++	u16 year;    /* 0 - 9999 */
++	u8  month;   /* 1 - 12 */
++	u8  day;     /* 1 - 31 */
++	u8  hour;    /* 0 - 23 */
++	u8  minute;  /* 0 - 59 */
++	u8  second;  /* 0 - 59 */
++	u8  weekday; /* 0 - 6 (Starting with Monday) */
++} __packed;
++
++struct vmu_rtc {
++	struct rtc_device *rtc;
++	struct maple_device *mdev;
++};
++
++/* Maple bus callback for reading time */
++static void vmu_rtc_read_callback(struct mapleq *mq)
++{
++	/* Time data will be available in mq->recvbuf */
++	complete(&mq->dev->maple_wait);
++}
++
++/* Read time from VMU */
++static int vmu_rtc_read_time(struct device *dev, struct rtc_time *tm)
++{
++	struct vmu_rtc *vrtc = dev_get_drvdata(dev);
++	struct maple_device *mdev = vrtc->mdev;
++	struct vmu_datetime vdt;
++	unsigned char sendbuf[4];
++	int ret;
++
++	/* Request time from VMU */
++	memset(sendbuf, 0, sizeof(sendbuf));
++	ret = maple_add_packet(mdev, MAPLE_FUNC_CLOCK,
++	                       MAPLE_COMMAND_GETCOND, 0, sendbuf);
++	if (ret)
++		return ret;
++
++	/* Wait for response */
++	ret = wait_for_completion_interruptible_timeout(&mdev->maple_wait, HZ);
++	if (ret < 0)
++		return ret;
++	if (ret == 0)
++		return -ETIMEDOUT;
++
++	/* Extract datetime from response buffer */
++	/* Response format: [4 byte header][vmu_datetime struct] */
++	memcpy(&vdt, mdev->mq->recvbuf->buf + 4, sizeof(vdt));
++
++	/* Convert VMU datetime to Linux rtc_time */
++	tm->tm_sec  = vdt.second;
++	tm->tm_min  = vdt.minute;
++	tm->tm_hour = vdt.hour;
++	tm->tm_mday = vdt.day;
++	tm->tm_mon  = vdt.month - 1;        /* rtc_time uses 0-11 */
++	tm->tm_year = vdt.year - 1900;      /* rtc_time is years since 1900 */
++	tm->tm_wday = vdt.weekday != 6 ? vdt.weekday + 1 : 0;  /* Adjust weekday */
++
++	return 0;
++}
++
++/* Write time to VMU */
++static int vmu_rtc_set_time(struct device *dev, struct rtc_time *tm)
++{
++	struct vmu_rtc *vrtc = dev_get_drvdata(dev);
++	struct maple_device *mdev = vrtc->mdev;
++	struct vmu_datetime vdt;
++	unsigned char sendbuf[sizeof(vdt) + 4];
++	int ret;
++
++	/* Convert Linux rtc_time to VMU datetime */
++	vdt.second  = tm->tm_sec;
++	vdt.minute  = tm->tm_min;
++	vdt.hour    = tm->tm_hour;
++	vdt.day     = tm->tm_mday;
++	vdt.month   = tm->tm_mon + 1;       /* VMU uses 1-12 */
++	vdt.year    = tm->tm_year + 1900;   /* VMU uses actual year */
++	vdt.weekday = tm->tm_wday ? tm->tm_wday - 1 : 6;  /* Adjust weekday */
++
++	/* Prepare send buffer */
++	memset(sendbuf, 0, 4);
++	memcpy(sendbuf + 4, &vdt, sizeof(vdt));
++
++	/* Send time to VMU */
++	ret = maple_add_packet(mdev, MAPLE_FUNC_CLOCK,
++	                       MAPLE_COMMAND_SETCOND, sizeof(vdt), sendbuf + 4);
++	if (ret)
++		return ret;
++
++	/* Wait for completion */
++	ret = wait_for_completion_interruptible_timeout(&mdev->maple_wait, HZ);
++	if (ret < 0)
++		return ret;
++	if (ret == 0)
++		return -ETIMEDOUT;
++
++	return 0;
++}
++
++static const struct rtc_class_ops vmu_rtc_ops = {
++	.read_time = vmu_rtc_read_time,
++	.set_time = vmu_rtc_set_time,
++};
++
++/* Check if device is a real VMU with clock */
++static bool is_vmu_with_clock(struct maple_device *mdev)
++{
++	return (mdev->devinfo.function & MAPLE_FUNC_CLOCK) != 0;
++}
++
++/* Maple driver probe */
++static int vmu_rtc_probe(struct device *dev)
++{
++	struct maple_device *mdev = to_maple_dev(dev);
++	struct vmu_rtc *vrtc;
++	int ret;
++
++	/* Only attach to devices with CLOCK function */
++	if (!is_vmu_with_clock(mdev))
++		return -ENODEV;
++
++	/* Allocate driver data */
++	vrtc = devm_kzalloc(dev, sizeof(*vrtc), GFP_KERNEL);
++	if (!vrtc)
++		return -ENOMEM;
++
++	vrtc->mdev = mdev;
++	dev_set_drvdata(dev, vrtc);
++	maple_set_drvdata(mdev, vrtc);
++
++	/* Setup Maple callback for time reading */
++	init_completion(&mdev->maple_wait);
++	maple_getcond_callback(mdev, vmu_rtc_read_callback, HZ, MAPLE_FUNC_CLOCK);
++
++	/* Register RTC device */
++	vrtc->rtc = devm_rtc_device_register(dev, VMU_RTC_NAME,
++	                                      &vmu_rtc_ops, THIS_MODULE);
++	if (IS_ERR(vrtc->rtc)) {
++		ret = PTR_ERR(vrtc->rtc);
++		dev_err(dev, "Failed to register RTC device: %d\n", ret);
++		return ret;
++	}
++
++	/* Set range: VMU can store years 0-9999 */
++	vrtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_1900;
++	vrtc->rtc->range_max = 253402300799LL; /* 9999-12-31 23:59:59 */
++
++	dev_info(dev, "VMU RTC registered\n");
++	return 0;
++}
++
++/* Maple driver remove */
++static int vmu_rtc_remove(struct device *dev)
++{
++	dev_info(dev, "VMU RTC removed\n");
++	return 0;
++}
++
++static struct maple_driver vmu_rtc_driver = {
++	.function = MAPLE_FUNC_CLOCK,
++	.drv = {
++		.name = VMU_RTC_NAME,
++		.probe = vmu_rtc_probe,
++		.remove = vmu_rtc_remove,
++	},
++};
++
++/* Module init */
++static int __init vmu_rtc_init(void)
++{
++	int ret;
++
++	ret = maple_driver_register(&vmu_rtc_driver);
++	if (ret) {
++		pr_err("vmu_rtc: Failed to register maple driver: %d\n", ret);
++		return ret;
++	}
++
++	pr_info("vmu_rtc: Dreamcast VMU RTC driver initialized\n");
++	return 0;
++}
++
++/* Module exit */
++static void __exit vmu_rtc_exit(void)
++{
++	maple_driver_unregister(&vmu_rtc_driver);
++	pr_info("vmu_rtc: Dreamcast VMU RTC driver unloaded\n");
++}
++
++module_init(vmu_rtc_init);
++module_exit(vmu_rtc_exit);
++
++MODULE_AUTHOR("Dreamcast Linux Project");
++MODULE_DESCRIPTION("Dreamcast VMU RTC Driver");
++MODULE_LICENSE("GPL v2");
++MODULE_ALIAS("maple:clock");
+--
+2.34.1
