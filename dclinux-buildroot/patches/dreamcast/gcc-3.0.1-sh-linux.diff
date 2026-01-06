@@ -1,0 +1,3683 @@
+diff -urN gcc-3.0.1.orig/Makefile.in gcc-3.0.1/Makefile.in
+--- gcc-3.0.1.orig/Makefile.in	Thu Jun  7 22:23:56 2001
++++ gcc-3.0.1/Makefile.in	Mon Sep 10 13:00:56 2001
+@@ -393,7 +393,8 @@
+ 	"gxx_include_dir=$(gxx_include_dir)" \
+ 	"gcc_version=$(gcc_version)" \
+ 	"gcc_version_trigger=$(gcc_version_trigger)" \
+-	"target_alias=$(target_alias)" 
++	"target_alias=$(target_alias)" \
++	"DESTDIR=$(DESTDIR)"
+ 
+ # For any flags above that may contain shell code that varies from one
+ # target library to another.  When doing recursive invocations of the
+diff -urN gcc-3.0.1.orig/boehm-gc/gcconfig.h gcc-3.0.1/boehm-gc/gcconfig.h
+--- gcc-3.0.1.orig/boehm-gc/gcconfig.h	Wed Apr  4 19:13:13 2001
++++ gcc-3.0.1/boehm-gc/gcconfig.h	Mon Sep 10 13:00:56 2001
+@@ -170,6 +170,10 @@
+ #    define ARM32
+ #    define mach_type_known
+ # endif
++# if defined(LINUX) && defined(__sh__)
++#    define SH
++#    define mach_type_known
++# endif
+ # if defined(__alpha) || defined(__alpha__)
+ #   define ALPHA
+ #   if !defined(LINUX)
+@@ -342,7 +346,7 @@
+ 		    /* 		   ARM32      ==> Intel StrongARM	*/
+ 		    /* 		   IA64	      ==> Intel IA64		*/
+ 		    /*				  (e.g. Itanium)	*/
+-
++		    /* 		   SH         ==> Hitachi SuperH	*/
+ 
+ /*
+  * For each architecture and OS, the following need to be defined:
+@@ -1231,6 +1235,22 @@
+ #   endif
+ #endif
+ 
++# ifdef SH
++#   define CPP_WORDSZ 32
++#   define MACH_TYPE "SH"
++#   define ALIGNMENT 4
++#   ifdef LINUX
++#       define OS_TYPE "LINUX"
++#       define STACKBOTTOM ((ptr_t) 0x7c000000)
++#       define USE_GENERIC_PUSH_REGS
++#       define DYNAMIC_LOADING
++#	include <features.h>
++#	define LINUX_DATA_START
++	extern int _end;
++#	define DATAEND (&_end)
++#   endif
++# endif
++ 
+ #ifdef LINUX_DATA_START
+     /* Some Linux distributions arrange to define __data_start.  Some	*/
+     /* define data_start as a weak symbol.  The latter is technically	*/
+diff -urN gcc-3.0.1.orig/config.sub gcc-3.0.1/config.sub
+--- gcc-3.0.1.orig/config.sub	Mon Jul 16 05:04:04 2001
++++ gcc-3.0.1/config.sub	Mon Sep 10 13:00:56 2001
+@@ -3,7 +3,7 @@
+ #   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+ #   Free Software Foundation, Inc.
+ 
+-timestamp='2001-06-08'
++timestamp='2001-06-19'
+ 
+ # This file is (in principle) common to ALL GNU software.
+ # The presence of a machine in this file suggests that SOME GNU software
+@@ -232,7 +232,7 @@
+ 		| hppa64 \
+ 		| alpha | alphaev[4-8] | alphaev56 | alphapca5[67] \
+ 		| alphaev6[78] \
+-		| we32k | ns16k | clipper | i370 | sh | sh[34] \
++		| we32k | ns16k | clipper | i370 | sh | sh[34] | sh[34]eb \
+ 		| powerpc | powerpcle \
+ 		| 1750a | dsp16xx | pdp10 | pdp11 \
+ 		| mips16 | mips64 | mipsel | mips64el \
+@@ -946,7 +946,7 @@
+ 	we32k)
+ 		basic_machine=we32k-att
+ 		;;
+-	sh3 | sh4)
++	sh3 | sh4 | sh3eb | sh4eb)
+ 		basic_machine=sh-unknown
+ 		;;
+ 	sparc | sparcv9 | sparcv9b)
+diff -urN gcc-3.0.1.orig/debian/changelog gcc-3.0.1/debian/changelog
+--- gcc-3.0.1.orig/debian/changelog	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/debian/changelog	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,62 @@
++gcc-sh-linux (3.0.1-1) unstable; urgency=low
++
++  * New upstream version
++
++ -- YAEGASHI Takeshi <t@keshi.org>  Wed, 21 Mar 2001 19:39:11 +0900
++
++gcc-sh-linux (2.97.001120-2) unstable; urgency=low
++
++  * Rebuild with new binutils(010127).
++
++ -- YAEGASHI Takeshi <t@keshi.org>  Sun, 28 Jan 2001 20:43:24 +0900
++
++gcc-sh-linux (2.97.001120-1) unstable; urgency=low
++
++  * New upstream version.
++
++ -- YAEGASHI Takeshi <yaegashi@ma.kcom.ne.jp>  Thu, 23 Nov 2000 16:52:48 +0900
++
++gcc-sh-linux (2.97.001002-4) unstable; urgency=low
++
++  * Fix specs (--dynamic-linker).
++
++ -- YAEGASHI Takeshi <yaegashi@ma.kcom.ne.jp>  Tue, 14 Nov 2000 21:57:41 +0900
++
++gcc-sh-linux (2.97.001002-3) unstable; urgency=low
++
++  * Split into sub-architecture packages.
++  * Add symbol visibility feature. (from gNiibe)
++
++ -- YAEGASHI Takeshi <yaegashi@ma.kcom.ne.jp>  Sun, 12 Nov 2000 00:11:41 +0900
++
++gcc-sh-linux (2.97.001002-2) unstable; urgency=low
++
++  * Add sub-architecture scripts and directories.
++  * gcc/{bb-reorder.c,c-decl.c,dwarf2out.c}, gcc/config/sh/xm-sh.h: patched
++  by gNiibe.
++  
++ -- YAEGASHI Takeshi <yaegashi@ma.kcom.ne.jp>  Fri,  3 Nov 2000 21:18:08 +0900
++
++gcc-sh-linux (2.97.001002-1) unstable; urgency=low
++
++  * New upstream version.
++  * Based: ftp://ftp.m17n.org/pub/linux-sh/original/egcs-core-20001002.tar.gz
++  * gcc/config/sh/t-linux: patched by gNiibe.
++
++ -- YAEGASHI Takeshi <yaegashi@ma.kcom.ne.jp>  Wed, 18 Oct 2000 00:11:50 +0900
++
++gcc-sh-linux (2.95.2.000513-1) unstable; urgency=low
++
++  * New upstream version.
++  * Based: gcc-2.95.2.tar.bz2
++  * Applied: ftp://ftp.m17n.org/pub/linux-sh/gcc-2.95.2-000228.diff.gz
++  * Applied: ftp://ftp.m17n.org/pub/linux-sh/gcc-symbol-vis-000513.diff.gz
++  
++ -- YAEGASHI Takeshi <yaegashi@ma.kcom.ne.jp>  Wed, 16 Aug 2000 22:19:20 +0900
++
++gcc-sh-linux (2.95.2.000228-1) unstable; urgency=low
++
++  * Initial Release.
++
++ -- YAEGASHI Takeshi <yaegashi@ma.kcom.ne.jp>  Mon,  1 May 2000 21:35:37 +0900
++
+diff -urN gcc-3.0.1.orig/debian/control gcc-3.0.1/debian/control
+--- gcc-3.0.1.orig/debian/control	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/debian/control	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,40 @@
++Source: gcc-sh-linux
++Section: devel
++Priority: extra
++Maintainer: YAEGASHI Takeshi <yaegashi@ma.kcom.ne.jp>
++Standards-Version: 3.0.1
++
++Package: gcc-sh-linux
++Architecture: any
++Depends: ${shlibs:Depends}
++Description: The GNU C compiler for cross compiling generic sh-linux binaries.
++
++Package: gcc-sh-linux-others
++Architecture: any
++Depends: gcc-sh-linux, bash
++Conflicts: gcc-sh3-linux, gcc-sh3eb-linux, gcc-sh4-linux, gcc-sh4eb-linux
++Description: GNU binutils for cross compiling sh{3,4,3eb,4eb}-linux binaries
++
++Package: gcc-sh3-linux
++Architecture: any
++Depends: ${shlibs:Depends}
++Description: The GNU C compiler for cross compiling sh3-linux binaries.
++Conflicts: gcc-sh-linux-others
++
++Package: gcc-sh4-linux
++Architecture: any
++Depends: ${shlibs:Depends}
++Description: The GNU C compiler for cross compiling sh4-linux binaries.
++Conflicts: gcc-sh-linux-others
++
++Package: gcc-sh3eb-linux
++Architecture: any
++Depends: ${shlibs:Depends}
++Description: The GNU C compiler for cross compiling sh3eb-linux binaries.
++Conflicts: gcc-sh-linux-others
++
++Package: gcc-sh4eb-linux
++Architecture: any
++Depends: ${shlibs:Depends}
++Description: The GNU C compiler for cross compiling sh4eb-linux binaries.
++Conflicts: gcc-sh-linux-others
+diff -urN gcc-3.0.1.orig/debian/copyright gcc-3.0.1/debian/copyright
+--- gcc-3.0.1.orig/debian/copyright	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/debian/copyright	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,20 @@
++GCC is Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993,
++1994, 1995, 1996 Free Software Foundation, Inc.
++
++This program is free software; you can redistribute it and/or modify it
++under the terms of the GNU General Public License as published by the
++Free Software Foundation; either version 2, or (at your option) any
++later version.
++
++This program is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
++
++You should have received a copy of the GNU General Public License
++along with this program; if not, write to the Free Software
++Foundation, 59 Temple Place - Suite 330,
++Boston, MA 02111-1307, USA.
++
++On Debian GNU/Linux systems, the complete text of the GNU General
++Public License can be found in `/usr/doc/copyright/GPL'.
+diff -urN gcc-3.0.1.orig/debian/dirs gcc-3.0.1/debian/dirs
+--- gcc-3.0.1.orig/debian/dirs	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/debian/dirs	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,3 @@
++usr/bin
++usr/lib
++usr/share
+diff -urN gcc-3.0.1.orig/debian/install-CPU-linux gcc-3.0.1/debian/install-CPU-linux
+--- gcc-3.0.1.orig/debian/install-CPU-linux	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/debian/install-CPU-linux	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,22 @@
++#! /bin/sh
++
++cd $1
++shift
++
++CPU=$1
++
++cd gcc-sh-linux-others || exit 1
++
++# literally (binary-ly) same
++PROGS="cpp c++ g++ g77 gcc gcj"
++
++# Make directories
++mkdir -p usr/bin usr/share usr/share/man usr/share/man/man1
++
++# Make symbolic links for binaries
++(cd usr/bin;
++  for p in ${PROGS}; do
++    ln -s shCPU-linux-GCC ${CPU}-linux-$p
++  done)
++
++exit 0
+diff -urN gcc-3.0.1.orig/debian/rules gcc-3.0.1/debian/rules
+--- gcc-3.0.1.orig/debian/rules	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/debian/rules	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,109 @@
++#!/usr/bin/make -f
++# Sample debian/rules that uses debhelper.
++# GNU copyright 1997 to 1999 by Joey Hess.
++
++# Uncomment this to turn on verbose mode.
++#export DH_VERBOSE=1
++
++# This is the debhelper compatability version to use.
++export DH_COMPAT=2
++
++export DH_OPTIONS
++
++DEB_BUILD_GNU_TYPE	:= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
++DEB_HOST_GNU_TYPE	:= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
++
++allarch = sh-linux sh3-linux sh4-linux sh3eb-linux sh4eb-linux
++
++%-sh-linux: DH_OPTIONS=-p gcc-sh-linux
++%-sh3-linux: DH_OPTIONS=-p gcc-sh3-linux
++%-sh4-linux: DH_OPTIONS=-p gcc-sh4-linux
++%-sh3eb-linux: DH_OPTIONS=-p gcc-sh3eb-linux
++%-sh4eb-linux: DH_OPTIONS=-p gcc-sh4eb-linux
++%-sh-linux-others: DH_OPTIONS=-p gcc-sh-linux-others
++
++build: $(addprefix build-,$(allarch))
++build-%:
++	dh_testdir
++	mkdir -p $(@:build-%=%)
++	cd $(@:build-%=%); \
++	../configure --prefix=/usr \
++		--mandir=\$${prefix}/share/man \
++		--infodir=\$${prefix}/share/info \
++		--build=$(DEB_BUILD_GNU_TYPE) \
++		--host=$(DEB_HOST_GNU_TYPE) \
++		--target=$(@:build-%=%) \
++		--disable-nls \
++		--with-system-zlib
++	$(MAKE) -C $(@:build-%=%) all-gcc all-target-libstdc++-v3 all-target-libobjc
++	touch $@
++
++clean:
++	dh_testdir
++	dh_testroot
++	rm -rf $(allarch)
++	rm -f $(addprefix build-,$(allarch))
++	rm -f gcc/tradcif.c
++	rm -f gcc/c-parse.[cy]
++	rm -f gcc/cp/parse.[ch]
++	rm -f `find gcc -name '*.info*'`
++	dh_clean
++
++install: $(addprefix install-,$(allarch)) install-sh-linux-others
++install-%: build-%
++	dh_testdir
++	dh_testroot
++	dh_clean -k
++	dh_installdirs
++	$(MAKE) -C $(@:install-%=%) \
++		prefix=`pwd`/debian/gcc-$(@:install-%=%)/usr \
++		install-gcc install-target-libstdc++-v3 \
++		install-target-libobjc
++	rm -f debian/gcc-$(@:install-%=%)/usr/bin/{gccbug,gcov,cpp,gcjh,jcf-dump,jv-scan}
++	rm -f debian/gcc-$(@:install-%=%)/usr/bin/*c++filt
++	rm -f debian/gcc-$(@:install-%=%)/usr/share/man/man1/cpp.1*
++	rm -f debian/gcc-$(@:install-%=%)/usr/share/man/man1/gcov.1*
++	rm -rf debian/gcc-$(@:install-%=%)/usr/share/info
++	rm -rf debian/gcc-$(@:install-%=%)/usr/include
++
++install-sh-linux-others:
++	dh_testdir
++	dh_testroot
++	dh_clean -k
++	dh_installdirs
++	sh debian/install-CPU-linux debian sh3
++	sh debian/install-CPU-linux debian sh3eb
++	sh debian/install-CPU-linux debian sh4
++	sh debian/install-CPU-linux debian sh4eb
++	install -m 0755 debian/shCPU-linux-GCC \
++		debian/gcc-sh-linux-others/usr/bin/
++
++binary: install binary-arch
++binary-%: install-% binary-arch ;	
++binary-arch:
++#	dh_testversion
++	dh_testdir
++	dh_testroot
++#	dh_installdebconf	
++	dh_installdocs
++	dh_installexamples
++	dh_installmenu
++#	dh_installemacsen
++#	dh_installpam
++#	dh_installinit
++	dh_installcron
++#	dh_installmanpages
++#	dh_installinfo
++#	dh_undocumented
++	dh_installchangelogs ChangeLog
++	dh_link
++	dh_strip -X".a" -X".so"
++	dh_compress
++	dh_fixperms
++#	dh_makeshlibs
++	dh_installdeb
++#	dh_perl
++	dh_shlibdeps -X".a" -X".so"
++	dh_gencontrol
++	dh_md5sums
++	dh_builddeb
+diff -urN gcc-3.0.1.orig/debian/shCPU-linux-GCC gcc-3.0.1/debian/shCPU-linux-GCC
+--- gcc-3.0.1.orig/debian/shCPU-linux-GCC	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/debian/shCPU-linux-GCC	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,43 @@
++#! /bin/bash
++
++BASENAME=${0##*/}
++PROG=${BASENAME##*-}
++CPU=${BASENAME%%-*}
++
++case "${CPU}" in
++    sh3)
++	ARCH=m3
++	DEFINES="-D__sh3__ -D__SH3__ -D__LITTLE_ENDIAN__"
++	ENDIAN=ml
++    ;;
++    sh3eb)
++	ARCH=m3
++	DEFINES="-D__sh3__ -D__SH3__ -D__BIG_ENDIAN__"
++	ENDIAN=mb
++    ;;
++    sh4)
++	ARCH=m4
++	DEFINES="-D__SH4__ -D__LITTLE_ENDIAN__"
++	ENDIAN=ml
++    ;;
++    sh4eb)
++	ARCH=m4
++	DEFINES="-D__SH4__ -D__BIG_ENDIAN__"
++	ENDIAN=mb
++    ;;
++esac
++
++# Prepend the appropriate options
++# If user specifies some options, it will be overridden
++
++case "${PROG}" in
++    cpp)
++	exec sh-linux-${PROG} $DEFINES "$@"
++    ;;
++    c++|g++|g77|gcc|gcj)
++	exec sh-linux-${PROG} -$ARCH -$ENDIAN "$@"
++    ;;
++esac
++
++echo "Something wrong..."
++exit 1
+diff -urN gcc-3.0.1.orig/gcc/combine.c gcc-3.0.1/gcc/combine.c
+--- gcc-3.0.1.orig/gcc/combine.c	Fri Jul 13 11:39:35 2001
++++ gcc-3.0.1/gcc/combine.c	Mon Sep 10 13:00:56 2001
+@@ -6736,7 +6736,8 @@
+ 
+      Also do nothing if X is a CLOBBER; this can happen if X was
+      the return value from a call to gen_lowpart_for_combine.  */
+-  if (code == CALL || code == ASM_OPERANDS || code == CLOBBER)
++  if (code == CALL || code == ASM_OPERANDS || code == CLOBBER
++      || code == UNSPEC)
+     return x;
+ 
+   /* We want to perform the operation is its present mode unless we know
+diff -urN gcc-3.0.1.orig/gcc/config/sh/lib1funcs.asm gcc-3.0.1/gcc/config/sh/lib1funcs.asm
+--- gcc-3.0.1.orig/gcc/config/sh/lib1funcs.asm	Sun Jun  3 17:08:36 2001
++++ gcc-3.0.1/gcc/config/sh/lib1funcs.asm	Mon Sep 10 13:00:56 2001
+@@ -39,8 +39,13 @@
+ 
+ #ifdef __ELF__
+ #define LOCAL(X) .L_##X
++#define FUNC(X) .type X,@function; .hidden X
++#define _ENDFUNC(X) .Lfe_##X: .size X,.Lfe_##X-X
++#define ENDFUNC(X) _ENDFUNC(X)
+ #else
+ #define LOCAL(X) L_##X
++#define FUNC(X)
++#define ENDFUNC(X)
+ #endif
+ 
+ #ifdef __linux__
+@@ -86,6 +91,40 @@
+ 	.global	GLOBAL(ashiftrt_r4_31)
+ 	.global	GLOBAL(ashiftrt_r4_32)
+ 
++	FUNC(GLOBAL(ashiftrt_r4_0))
++	FUNC(GLOBAL(ashiftrt_r4_1))
++	FUNC(GLOBAL(ashiftrt_r4_2))
++	FUNC(GLOBAL(ashiftrt_r4_3))
++	FUNC(GLOBAL(ashiftrt_r4_4))
++	FUNC(GLOBAL(ashiftrt_r4_5))
++	FUNC(GLOBAL(ashiftrt_r4_6))
++	FUNC(GLOBAL(ashiftrt_r4_7))
++	FUNC(GLOBAL(ashiftrt_r4_8))
++	FUNC(GLOBAL(ashiftrt_r4_9))
++	FUNC(GLOBAL(ashiftrt_r4_10))
++	FUNC(GLOBAL(ashiftrt_r4_11))
++	FUNC(GLOBAL(ashiftrt_r4_12))
++	FUNC(GLOBAL(ashiftrt_r4_13))
++	FUNC(GLOBAL(ashiftrt_r4_14))
++	FUNC(GLOBAL(ashiftrt_r4_15))
++	FUNC(GLOBAL(ashiftrt_r4_16))
++	FUNC(GLOBAL(ashiftrt_r4_17))
++	FUNC(GLOBAL(ashiftrt_r4_18))
++	FUNC(GLOBAL(ashiftrt_r4_19))
++	FUNC(GLOBAL(ashiftrt_r4_20))
++	FUNC(GLOBAL(ashiftrt_r4_21))
++	FUNC(GLOBAL(ashiftrt_r4_22))
++	FUNC(GLOBAL(ashiftrt_r4_23))
++	FUNC(GLOBAL(ashiftrt_r4_24))
++	FUNC(GLOBAL(ashiftrt_r4_25))
++	FUNC(GLOBAL(ashiftrt_r4_26))
++	FUNC(GLOBAL(ashiftrt_r4_27))
++	FUNC(GLOBAL(ashiftrt_r4_28))
++	FUNC(GLOBAL(ashiftrt_r4_29))
++	FUNC(GLOBAL(ashiftrt_r4_30))
++	FUNC(GLOBAL(ashiftrt_r4_31))
++	FUNC(GLOBAL(ashiftrt_r4_32))
++
+ 	.align	1
+ GLOBAL(ashiftrt_r4_32):
+ GLOBAL(ashiftrt_r4_31):
+@@ -165,6 +204,41 @@
+ GLOBAL(ashiftrt_r4_0):
+ 	rts
+ 	nop
++
++	ENDFUNC(GLOBAL(ashiftrt_r4_0))
++	ENDFUNC(GLOBAL(ashiftrt_r4_1))
++	ENDFUNC(GLOBAL(ashiftrt_r4_2))
++	ENDFUNC(GLOBAL(ashiftrt_r4_3))
++	ENDFUNC(GLOBAL(ashiftrt_r4_4))
++	ENDFUNC(GLOBAL(ashiftrt_r4_5))
++	ENDFUNC(GLOBAL(ashiftrt_r4_6))
++	ENDFUNC(GLOBAL(ashiftrt_r4_7))
++	ENDFUNC(GLOBAL(ashiftrt_r4_8))
++	ENDFUNC(GLOBAL(ashiftrt_r4_9))
++	ENDFUNC(GLOBAL(ashiftrt_r4_10))
++	ENDFUNC(GLOBAL(ashiftrt_r4_11))
++	ENDFUNC(GLOBAL(ashiftrt_r4_12))
++	ENDFUNC(GLOBAL(ashiftrt_r4_13))
++	ENDFUNC(GLOBAL(ashiftrt_r4_14))
++	ENDFUNC(GLOBAL(ashiftrt_r4_15))
++	ENDFUNC(GLOBAL(ashiftrt_r4_16))
++	ENDFUNC(GLOBAL(ashiftrt_r4_17))
++	ENDFUNC(GLOBAL(ashiftrt_r4_18))
++	ENDFUNC(GLOBAL(ashiftrt_r4_19))
++	ENDFUNC(GLOBAL(ashiftrt_r4_20))
++	ENDFUNC(GLOBAL(ashiftrt_r4_21))
++	ENDFUNC(GLOBAL(ashiftrt_r4_22))
++	ENDFUNC(GLOBAL(ashiftrt_r4_23))
++	ENDFUNC(GLOBAL(ashiftrt_r4_24))
++	ENDFUNC(GLOBAL(ashiftrt_r4_25))
++	ENDFUNC(GLOBAL(ashiftrt_r4_26))
++	ENDFUNC(GLOBAL(ashiftrt_r4_27))
++	ENDFUNC(GLOBAL(ashiftrt_r4_28))
++	ENDFUNC(GLOBAL(ashiftrt_r4_29))
++	ENDFUNC(GLOBAL(ashiftrt_r4_30))
++	ENDFUNC(GLOBAL(ashiftrt_r4_31))
++	ENDFUNC(GLOBAL(ashiftrt_r4_32))
++
+ #endif
+ 
+ #ifdef L_ashiftrt_n
+@@ -187,6 +261,7 @@
+ !
+ 
+ 	.global	GLOBAL(ashrsi3)
++	FUNC(GLOBAL(ashrsi3))
+ 	.align	2
+ GLOBAL(ashrsi3):
+ 	mov	#31,r0
+@@ -314,6 +389,8 @@
+ 	rts
+ 	nop
+ 
++	ENDFUNC(GLOBAL(ashrsi3))
++
+ #endif
+ 
+ #ifdef L_ashiftlt
+@@ -335,6 +412,7 @@
+ ! (none)
+ !
+ 	.global	GLOBAL(ashlsi3)
++	FUNC(GLOBAL(ashlsi3))
+ 	.align	2
+ GLOBAL(ashlsi3):
+ 	mov	#31,r0
+@@ -471,6 +549,8 @@
+ 	rts
+ 	nop
+ 
++	ENDFUNC(GLOBAL(ashlsi3))
++
+ #endif
+ 
+ #ifdef L_lshiftrt
+@@ -492,6 +572,7 @@
+ ! (none)
+ !
+ 	.global	GLOBAL(lshrsi3)
++	FUNC(GLOBAL(lshrsi3))
+ 	.align	2
+ GLOBAL(lshrsi3):
+ 	mov	#31,r0
+@@ -628,6 +709,8 @@
+ 	rts
+ 	nop
+ 
++	ENDFUNC(GLOBAL(lshrsi3))
++
+ #endif
+ 
+ #ifdef L_movstr
+@@ -644,76 +727,113 @@
+ 	add	#64,r4
+ 	.align	4
+ 	.global	GLOBAL(movstrSI64)
++	FUNC(GLOBAL(movstrSI64))
+ GLOBAL(movstrSI64):
+ 	mov.l	@(60,r5),r0
+ 	mov.l	r0,@(60,r4)
+ 	.global	GLOBAL(movstrSI60)
++	FUNC(GLOBAL(movstrSI60))
+ GLOBAL(movstrSI60):
+ 	mov.l	@(56,r5),r0
+ 	mov.l	r0,@(56,r4)
+ 	.global	GLOBAL(movstrSI56)
++	FUNC(GLOBAL(movstrSI56))
+ GLOBAL(movstrSI56):
+ 	mov.l	@(52,r5),r0
+ 	mov.l	r0,@(52,r4)
+ 	.global	GLOBAL(movstrSI52)
++	FUNC(GLOBAL(movstrSI52))
+ GLOBAL(movstrSI52):
+ 	mov.l	@(48,r5),r0
+ 	mov.l	r0,@(48,r4)
+ 	.global	GLOBAL(movstrSI48)
++	FUNC(GLOBAL(movstrSI48))
+ GLOBAL(movstrSI48):
+ 	mov.l	@(44,r5),r0
+ 	mov.l	r0,@(44,r4)
+ 	.global	GLOBAL(movstrSI44)
++	FUNC(GLOBAL(movstrSI44))
+ GLOBAL(movstrSI44):
+ 	mov.l	@(40,r5),r0
+ 	mov.l	r0,@(40,r4)
+ 	.global	GLOBAL(movstrSI40)
++	FUNC(GLOBAL(movstrSI40))
+ GLOBAL(movstrSI40):
+ 	mov.l	@(36,r5),r0
+ 	mov.l	r0,@(36,r4)
+ 	.global	GLOBAL(movstrSI36)
++	FUNC(GLOBAL(movstrSI36))
+ GLOBAL(movstrSI36):
+ 	mov.l	@(32,r5),r0
+ 	mov.l	r0,@(32,r4)
+ 	.global	GLOBAL(movstrSI32)
++	FUNC(GLOBAL(movstrSI32))
+ GLOBAL(movstrSI32):
+ 	mov.l	@(28,r5),r0
+ 	mov.l	r0,@(28,r4)
+ 	.global	GLOBAL(movstrSI28)
++	FUNC(GLOBAL(movstrSI28))
+ GLOBAL(movstrSI28):
+ 	mov.l	@(24,r5),r0
+ 	mov.l	r0,@(24,r4)
+ 	.global	GLOBAL(movstrSI24)
++	FUNC(GLOBAL(movstrSI24))
+ GLOBAL(movstrSI24):
+ 	mov.l	@(20,r5),r0
+ 	mov.l	r0,@(20,r4)
+ 	.global	GLOBAL(movstrSI20)
++	FUNC(GLOBAL(movstrSI20))
+ GLOBAL(movstrSI20):
+ 	mov.l	@(16,r5),r0
+ 	mov.l	r0,@(16,r4)
+ 	.global	GLOBAL(movstrSI16)
++	FUNC(GLOBAL(movstrSI16))
+ GLOBAL(movstrSI16):
+ 	mov.l	@(12,r5),r0
+ 	mov.l	r0,@(12,r4)
+ 	.global	GLOBAL(movstrSI12)
++	FUNC(GLOBAL(movstrSI12))
+ GLOBAL(movstrSI12):
+ 	mov.l	@(8,r5),r0
+ 	mov.l	r0,@(8,r4)
+ 	.global	GLOBAL(movstrSI8)
++	FUNC(GLOBAL(movstrSI8))
+ GLOBAL(movstrSI8):
+ 	mov.l	@(4,r5),r0
+ 	mov.l	r0,@(4,r4)
+ 	.global	GLOBAL(movstrSI4)
++	FUNC(GLOBAL(movstrSI4))
+ GLOBAL(movstrSI4):
+ 	mov.l	@(0,r5),r0
+ 	mov.l	r0,@(0,r4)
++	.global	GLOBAL(movstrSI0)
++	FUNC(GLOBAL(movstrSI0))
+ GLOBAL(movstrSI0):
+ 	rts
+ 	nop
+ 
++	ENDFUNC(GLOBAL(movstrSI64))
++	ENDFUNC(GLOBAL(movstrSI60))
++	ENDFUNC(GLOBAL(movstrSI56))
++	ENDFUNC(GLOBAL(movstrSI52))
++	ENDFUNC(GLOBAL(movstrSI48))
++	ENDFUNC(GLOBAL(movstrSI44))
++	ENDFUNC(GLOBAL(movstrSI40))
++	ENDFUNC(GLOBAL(movstrSI36))
++	ENDFUNC(GLOBAL(movstrSI32))
++	ENDFUNC(GLOBAL(movstrSI28))
++	ENDFUNC(GLOBAL(movstrSI24))
++	ENDFUNC(GLOBAL(movstrSI20))
++	ENDFUNC(GLOBAL(movstrSI16))
++	ENDFUNC(GLOBAL(movstrSI12))
++	ENDFUNC(GLOBAL(movstrSI8))
++	ENDFUNC(GLOBAL(movstrSI4))
++	ENDFUNC(GLOBAL(movstrSI0))
++
+ 	.align	4
+ 
+ 	.global	GLOBAL(movstr)
++	FUNC(GLOBAL(movstr))
+ GLOBAL(movstr):
+ 	mov.l	@(60,r5),r0
+ 	mov.l	r0,@(60,r4)
+@@ -770,6 +890,8 @@
+ 	add	#64,r5
+ 	bra	GLOBAL(movstr)
+ 	add	#64,r4
++
++	FUNC(GLOBAL(movstr))
+ #endif
+ 
+ #ifdef L_movstr_i4
+@@ -778,6 +900,10 @@
+ 	.global	GLOBAL(movstr_i4_odd)
+ 	.global	GLOBAL(movstrSI12_i4)
+ 
++	FUNC(GLOBAL(movstr_i4_even))
++	FUNC(GLOBAL(movstr_i4_odd))
++	FUNC(GLOBAL(movstrSI12_i4))
++
+ 	.p2align	5
+ L_movstr_2mod4_end:
+ 	mov.l	r0,@(16,r4)
+@@ -786,6 +912,11 @@
+ 
+ 	.p2align	2
+ 
++GLOBAL(movstr_i4_even):
++	mov.l	@r5+,r0
++	bra	L_movstr_start_even
++	mov.l	@r5+,r1
++
+ GLOBAL(movstr_i4_odd):
+ 	mov.l	@r5+,r1
+ 	add	#-4,r4
+@@ -812,10 +943,8 @@
+ 	rts
+ 	mov.l	r3,@(12,r4)
+ 
+-GLOBAL(movstr_i4_even):
+-	mov.l	@r5+,r0
+-	bra	L_movstr_start_even
+-	mov.l	@r5+,r1
++	ENDFUNC(GLOBAL(movstr_i4_even))
++	ENDFUNC(GLOBAL(movstr_i4_odd))
+ 
+ 	.p2align	4
+ GLOBAL(movstrSI12_i4):
+@@ -826,12 +955,16 @@
+ 	mov.l	r1,@(4,r4)
+ 	rts
+ 	mov.l	r2,@(8,r4)
++
++	ENDFUNC(GLOBAL(movstrSI12_i4))
++
+ #endif
+ 
+ #ifdef L_mulsi3
+ 
+ 
+ 	.global	GLOBAL(mulsi3)
++	FUNC(GLOBAL(mulsi3))
+ 
+ ! r4 =       aabb
+ ! r5 =       ccdd
+@@ -864,7 +997,7 @@
+ 	rts
+ 	add	r2,r0
+ 
+-
++	FUNC(GLOBAL(mulsi3))
+ #endif
+ #ifdef L_sdivsi3_i4
+ 	.title "SH DIVIDE"
+@@ -873,6 +1006,7 @@
+ !! args in r4 and r5, result in fpul, clobber dr0, dr2
+ 
+ 	.global	GLOBAL(sdivsi3_i4)
++	FUNC(GLOBAL(sdivsi3_i4))
+ GLOBAL(sdivsi3_i4):
+ 	lds r4,fpul
+ 	float fpul,dr0
+@@ -882,10 +1016,13 @@
+ 	rts
+ 	ftrc dr0,fpul
+ 
++	ENDFUNC(GLOBAL(sdivsi3_i4))
++
+ #elif defined(__SH4_SINGLE__) || defined(__SH4_SINGLE_ONLY__)
+ !! args in r4 and r5, result in fpul, clobber r2, dr0, dr2
+ 
+ 	.global	GLOBAL(sdivsi3_i4)
++	FUNC(GLOBAL(sdivsi3_i4))
+ GLOBAL(sdivsi3_i4):
+ 	sts.l fpscr,@-r15
+ 	mov #8,r2
+@@ -900,6 +1037,8 @@
+ 	rts
+ 	lds.l @r15+,fpscr
+ 
++	ENDFUNC(GLOBAL(sdivsi3_i4))
++
+ #endif /* ! __SH4__ */
+ #endif
+ 
+@@ -913,9 +1052,10 @@
+ !!
+ !!
+ 
+-!! args in r4 and r5, result in r0 clobber r1,r2,r3
++!! args in r4 and r5, result in r0 clobber r1, r2, r3, and t bit
+ 
+ 	.global	GLOBAL(sdivsi3)
++	FUNC(GLOBAL(sdivsi3))
+ GLOBAL(sdivsi3):
+ 	mov	r4,r1
+ 	mov	r5,r0
+@@ -1000,6 +1140,8 @@
+ div0:	rts
+ 	mov	#0,r0
+ 
++	ENDFUNC(GLOBAL(sdivsi3))
++
+ #endif /* ! __SH4__ */
+ #endif
+ #ifdef L_udivsi3_i4
+@@ -1007,9 +1149,11 @@
+ 	.title "SH DIVIDE"
+ !! 4 byte integer Divide code for the Hitachi SH
+ #ifdef __SH4__
+-!! args in r4 and r5, result in fpul, clobber r0, r1, r4, r5, dr0, dr2, dr4
++!! args in r4 and r5, result in fpul, clobber r0, r1, r4, r5, dr0, dr2, dr4,
++!! and t bit
+ 
+ 	.global	GLOBAL(udivsi3_i4)
++	FUNC(GLOBAL(udivsi3_i4))
+ GLOBAL(udivsi3_i4):
+ 	mov #1,r1
+ 	cmp/hi r1,r5
+@@ -1050,10 +1194,14 @@
+ L1:
+ 	.double 2147483648
+ 
++	ENDFUNC(GLOBAL(udivsi3_i4))
++
+ #elif defined(__SH4_SINGLE__) || defined(__SH4_SINGLE_ONLY__)
+-!! args in r4 and r5, result in fpul, clobber r0, r1, r4, r5, dr0, dr2, dr4
++!! args in r4 and r5, result in fpul, clobber r0, r1, r4, r5, dr0, dr2, dr4,
++!! and t bit
+ 
+ 	.global	GLOBAL(udivsi3_i4)
++	FUNC(GLOBAL(udivsi3_i4))
+ GLOBAL(udivsi3_i4):
+ 	mov #1,r1
+ 	cmp/hi r1,r5
+@@ -1102,6 +1250,8 @@
+ #endif
+ 	.double 2147483648
+ 
++	ENDFUNC(GLOBAL(udivsi3_i4))
++
+ #endif /* ! __SH4__ */
+ #endif
+ 
+@@ -1117,6 +1267,7 @@
+ 
+ !! args in r4 and r5, result in r0, clobbers r4, pr, and t bit
+ 	.global	GLOBAL(udivsi3)
++	FUNC(GLOBAL(udivsi3))
+ 
+ GLOBAL(udivsi3):
+ longway:
+@@ -1166,11 +1317,14 @@
+ ret:	rts
+ 	mov	r4,r0
+ 
++	ENDFUNC(GLOBAL(udivsi3))
++
+ #endif /* __SH4__ */
+ #endif
+ #ifdef L_set_fpscr
+ #if defined (__SH3E__) || defined(__SH4_SINGLE__) || defined(__SH4__) || defined(__SH4_SINGLE_ONLY__)
+ 	.global GLOBAL(set_fpscr)
++	FUNC(GLOBAL(set_fpscr))
+ GLOBAL(set_fpscr):
+ 	lds r4,fpscr
+ 	mov.l LOCAL(set_fpscr_L1),r1
+@@ -1203,16 +1357,38 @@
+ 	.align 2
+ LOCAL(set_fpscr_L1):
+ 	.long GLOBAL(fpscr_values)
++
++	ENDFUNC(GLOBAL(set_fpscr))
++
++#ifndef __linux__
+ #ifdef __ELF__
+         .comm   GLOBAL(fpscr_values),8,4
+ #else
+         .comm   GLOBAL(fpscr_values),8
+ #endif /* ELF */
++#endif /* linux */
+ #endif /* SH3E / SH4 */
+ #endif /* L_set_fpscr */
++#ifdef L_fpscr_values
++	.data
++	.align 2
++	.globl	GLOBAL(fpscr_values)
++	.weak	GLOBAL(fpscr_values)
++	.type	GLOBAL(fpscr_values),@object
++GLOBAL(fpscr_values):
++#ifdef FMOVD_WORKS
++	.long	0x100000
++	.long	0x180000
++#else
++	.long	0
++	.long	0x80000
++#endif
++	.size GLOBAL(fpscr_values),8
++#endif /* fpscr_values */
+ #ifdef L_ic_invalidate
+ #if defined(__SH4_SINGLE__) || defined(__SH4__) || defined(__SH4_SINGLE_ONLY__)
+ 	.global GLOBAL(ic_invalidate)
++	FUNC(GLOBAL(ic_invalidate))
+ GLOBAL(ic_invalidate):
+ 	ocbwb	@r4
+ 	mova	0f,r0
+@@ -1235,5 +1411,8 @@
+ 	nop
+ 	.endr
+ 	.endr
++
++	ENDFUNC(GLOBAL(ic_invalidate))
++
+ #endif /* SH4 */
+ #endif /* L_ic_invalidate */
+diff -urN gcc-3.0.1.orig/gcc/config/sh/libgcc-sh.ver gcc-3.0.1/gcc/config/sh/libgcc-sh.ver
+--- gcc-3.0.1.orig/gcc/config/sh/libgcc-sh.ver	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/gcc/config/sh/libgcc-sh.ver	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,4 @@
++GCC_3.0 {
++  global:
++	__fpscr_values
++}
+diff -urN gcc-3.0.1.orig/gcc/config/sh/linux.h gcc-3.0.1/gcc/config/sh/linux.h
+--- gcc-3.0.1.orig/gcc/config/sh/linux.h	Thu Nov  2 17:29:13 2000
++++ gcc-3.0.1/gcc/config/sh/linux.h	Mon Sep 10 13:00:56 2001
+@@ -39,13 +39,19 @@
+ #undef WCHAR_TYPE_SIZE
+ #define WCHAR_TYPE_SIZE BITS_PER_WORD
+ 
++/* This was defined in linux.h.  Define it here also. */
++#undef  DEFAULT_VTABLE_THUNKS
++#define DEFAULT_VTABLE_THUNKS   1
++
++/* Likewise.  */
++#define HANDLE_PRAGMA_PACK_PUSH_POP
++
+ #undef CPP_SPEC
+ #define CPP_SPEC \
+   "%{mb:-D__BIG_ENDIAN__} \
+    %{!mb:-D__LITTLE_ENDIAN__} \
+-   %{m3e:-D__SH3E__} \
+    %{m4:-D__SH4__} \
+-   %{!m3e:%{!m4:-D__SH3__ -D__sh3__}} \
++   %{!m4:-D__SH3__ -D__sh3__} \
+    %{fPIC:-D__PIC__ -D__pic__} \
+    %{fpic:-D__PIC__ -D__pic__} \
+    %{posix:-D_POSIX_SOURCE} \
+@@ -59,28 +65,26 @@
+ 
+ #undef CC1_SPEC
+ #define CC1_SPEC \
+-  "-musermode %{!mb:-ml} %{!m3e:%{!m4:-m3}}"
++  "-musermode %{!mb:-ml} %{!m4:-m3}"
+ 
+ #undef CC1PLUS_SPEC
+ #define CC1PLUS_SPEC \
+-  "-musermode %{!mb:-ml} %{!m3e:%{!m4:-m3}}"
++  "-musermode %{!mb:-ml} %{!m4:-m3}"
+ 
++/* XXX: Is there anyway to specify /usr/sh-linux/lib? */
++/* XXX: It's wrong if prefix != /usr */
+ #undef LINK_SPEC
+ #define LINK_SPEC \
+-  "%{!mb:-m shlelf_linux} %{mrelax:-relax} \
++  "%{!mb:-m shlelf_linux -EL} %{mb:-m shelf_linux -EB} %{mrelax:-relax} \
+    %{shared:-shared} \
+    %{!static: \
+      %{rdynamic:-export-dynamic} \
+-     %{!dynamic-linker:-dynamic-linker /lib/ld.so.1} \
+-     %{!rpath:-rpath /lib}} \
++     %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2} \
++     %{!mb:%{m4:-rpath-link /usr/sh-linux/lib/m4 }} \
++     %{mb:%{!m4:-rpath-link /usr/sh-linux/lib/mb}} \
++     %{m4:-rpath-link /usr/sh-linux/lib/mb/m4}} \
+    %{static:-static}"
+ 
+-#undef LIB_SPEC
+-#define LIB_SPEC \
+-  "%{shared: -lc} \
+-   %{!shared: %{pthread:-lthread} \
+-     %{profile:-lc_p} %{!profile: -lc}}"
+-
+ #undef STARTFILE_SPEC
+ #define STARTFILE_SPEC \
+   "%{!shared: \
+@@ -88,3 +92,5 @@
+ 		       %{!p:%{profile:gcrt1.o%s} \
+ 			 %{!profile:crt1.o%s}}}} \
+    crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
++
++#define NO_SHARED_LIBGCC_MULTILIB
+diff -urN gcc-3.0.1.orig/gcc/config/sh/sh.c gcc-3.0.1/gcc/config/sh/sh.c
+--- gcc-3.0.1.orig/gcc/config/sh/sh.c	Tue Jun 26 06:08:31 2001
++++ gcc-3.0.1/gcc/config/sh/sh.c	Mon Sep 10 13:00:56 2001
+@@ -480,14 +480,18 @@
+ 	       && GET_CODE (XEXP (operands[1], 0)) == PLUS
+ 	       && SYMBOLIC_CONST_P (XEXP (XEXP (operands[1], 0), 0)))
+ 	{
+-	  temp = no_new_pseudos ? operands[0] : gen_reg_rtx (Pmode);
++	  rtx ofs, reg = no_new_pseudos ? operands[0] : gen_reg_rtx (Pmode);
+ 	  temp = legitimize_pic_address (XEXP (XEXP (operands[1], 0), 0),
+-					 SImode, temp);
+-	  operands[1] = expand_binop (SImode, add_optab, temp,
+-				      XEXP (XEXP (operands[1], 0), 1),
+-				      no_new_pseudos ? temp
+-				      : gen_reg_rtx (Pmode),
+-				      0, OPTAB_LIB_WIDEN);
++					 SImode, reg);
++	  if (no_new_pseudos)
++	    {
++	      ofs = reg;
++	      emit_move_insn (ofs, XEXP (XEXP (operands[1], 0), 1));
++	    }
++	  else
++	    ofs = XEXP (XEXP (operands[1], 0), 1);
++	  operands[1] = expand_binop (SImode, add_optab, temp, ofs,
++				      reg, 0, OPTAB_LIB_WIDEN);
+ 	}
+     }
+ 
+@@ -507,6 +511,22 @@
+ 	       && GET_CODE (XEXP (operands[0], 0)) == PLUS
+ 	       && GET_CODE (XEXP (XEXP (operands[0], 0), 1)) == REG)
+ 	operands[1] = copy_to_mode_reg (mode, operands[1]);
++
++      /* This case can happen while using complex number.  */
++      if (TARGET_SH3E && GET_MODE_CLASS (mode) == MODE_FLOAT
++	       && GET_CODE (operands[1]) == MEM
++	       && GET_CODE (XEXP (operands[1], 0)) == PLUS
++	       && GET_CODE (XEXP (XEXP (operands[1], 0), 0)) == REG
++	       && GET_CODE (XEXP (XEXP (operands[1], 0), 1)) == CONST_INT)
++	XEXP (operands[1], 0) = copy_to_mode_reg (Pmode,
++						  XEXP (operands[1], 0));
++      else if (TARGET_SH3E && GET_MODE_CLASS (mode) == MODE_FLOAT
++	       && GET_CODE (operands[0]) == MEM
++	       && GET_CODE (XEXP (operands[0], 0)) == PLUS
++	       && GET_CODE (XEXP (XEXP (operands[0], 0), 0)) == REG
++	       && GET_CODE (XEXP (XEXP (operands[0], 0), 1)) == CONST_INT)
++	XEXP (operands[0], 0) = copy_to_mode_reg (Pmode,
++						  XEXP (operands[0], 0));
+     }
+ 
+   return 0;
+@@ -811,7 +831,7 @@
+     {
+     case 16:
+     case 12:
+-    case 6:
++    case 8:
+       /* This can happen if filling the delay slot has caused a forward
+ 	 branch to exceed its range (we could reverse it, but only
+ 	 when we know we won't overextend other branches; this should
+@@ -3946,7 +3966,9 @@
+ 		  && (! fixed_regs[reg] || reg == MACH_REG || reg == MACL_REG)
+ 		  && regs_ever_live[PR_REG]))
+ 	     && reg != STACK_POINTER_REGNUM && reg != ARG_POINTER_REGNUM
++#ifdef RETURN_ADDRESS_POINTER_REGNUM
+ 	     && reg != RETURN_ADDRESS_POINTER_REGNUM
++#endif
+ 	     && reg != T_REG && reg != GBR_REG && reg != FPSCR_REG)
+ 	  : (/* Only push those regs which are used and need to be saved.  */
+ 	     regs_ever_live[reg] && ! call_used_regs[reg]))
+@@ -4554,6 +4576,7 @@
+   if (from == FRAME_POINTER_REGNUM && to == STACK_POINTER_REGNUM)
+     return 0;
+ 
++#ifdef RETURN_ADDRESS_POINTER_REGNUM
+   if (from == RETURN_ADDRESS_POINTER_REGNUM
+       && (to == FRAME_POINTER_REGNUM || to == STACK_POINTER_REGNUM))
+     {
+@@ -4563,6 +4586,7 @@
+ 	  n -= 4;
+       return n + total_auto_space;
+     }
++#endif
+ 
+   abort ();
+ }
+@@ -5499,4 +5523,80 @@
+     }
+ 
+   return lab;
++}
++
++/* Return an RTX indicating where the return address to the calling
++   function can be found.  But this will be replaced with a general
++   function to get the initial value of a hard reg.  */
++rtx
++sh_return_addr (count, frame)
++     int count;
++     rtx frame ATTRIBUTE_UNUSED;
++{
++  rtx reg;
++
++  if (count != 0)
++    return NULL_RTX;
++
++  reg = cfun->machine->ra_rtx;
++
++  if (reg == NULL)
++    {
++      rtx init;
++
++      /* No rtx yet.  Invent one, and initialize it for ra in 
++	 the prologue.  */
++      reg = gen_reg_rtx (Pmode);
++      cfun->machine->ra_rtx = reg;
++      
++      init = gen_rtx_REG (Pmode, PR_REG);
++      init = gen_rtx_SET (VOIDmode, reg, init);
++
++      /* Emit the insn to the prologue with the other argument copies.  */
++      push_topmost_sequence ();
++      emit_insn_after (init, get_insns ());
++      pop_topmost_sequence ();
++    }
++
++  return reg;
++}
++
++/* Functions to save and restore machine-specific function data.  */
++static void
++sh_mark_machine_status (p)
++     struct function *p;
++{
++  struct machine_function *machine = p->machine;
++
++  if (machine)
++    ggc_mark_rtx (machine->ra_rtx);
++}
++
++static void
++sh_init_machine_status (p)
++     struct function *p;
++{
++  p->machine = ((struct machine_function *)
++		xcalloc (1, sizeof (struct machine_function)));
++}
++
++static void
++sh_free_machine_status (p)
++     struct function *p;
++{
++  if (p->machine)
++    {
++      free (p->machine);
++      p->machine = NULL;
++    }
++}
++
++/* Do anything needed before RTL is emitted for each function.  */
++void
++sh_init_expanders ()
++{
++  /* Arrange to initialize and mark the machine per-function status.  */
++  init_machine_status = sh_init_machine_status;
++  mark_machine_status = sh_mark_machine_status;
++  free_machine_status = sh_free_machine_status;
+ }
+diff -urN gcc-3.0.1.orig/gcc/config/sh/sh.h gcc-3.0.1/gcc/config/sh/sh.h
+--- gcc-3.0.1.orig/gcc/config/sh/sh.h	Tue Jun 26 06:08:32 2001
++++ gcc-3.0.1/gcc/config/sh/sh.h	Mon Sep 10 13:00:56 2001
+@@ -108,6 +108,7 @@
+ #define HARD_SH4_BIT	(1<<5)
+ #define FPU_SINGLE_BIT	(1<<7)
+ #define SH4_BIT	       	(1<<12)
++#define NO_FDIV_DIVSI_BIT	(1<<3)
+ #define FMOVD_BIT	(1<<4)
+ #define SPACE_BIT 	(1<<13)
+ #define BIGTABLE_BIT  	(1<<14)
+@@ -156,6 +157,9 @@
+ /* Nonzero if we should generate code using type 4 insns.  */
+ #define TARGET_SH4 (target_flags & SH4_BIT)
+ 
++/* Nonzero if we should *not* generate fdiv for integer division.  */
++#define TARGET_NO_FDIV_DIVSI (target_flags & NO_FDIV_DIVSI_BIT)
++
+ /* Nonzero if we should generate fmovd.  */
+ #define TARGET_FMOVD (target_flags & FMOVD_BIT)
+ 
+@@ -225,6 +229,7 @@
+   {"isize", 	ISIZE_BIT, "" },		\
+   {"l",		LITTLE_ENDIAN_BIT, "" },  	\
+   {"no-ieee",  	-IEEE_BIT, "" },		\
++  {"no-fdiv-divsi",	NO_FDIV_DIVSI_BIT, "" },	\
+   {"padstruct", PADSTRUCT_BIT, "" },    	\
+   {"prefergot",	PREFERGOT_BIT, "" },		\
+   {"relax",	RELAX_BIT, "" },		\
+@@ -590,7 +595,7 @@
+ 
+ /* Fake register that holds the address on the stack of the
+    current function's return address.  */
+-#define RETURN_ADDRESS_POINTER_REGNUM RAP_REG
++/* #define RETURN_ADDRESS_POINTER_REGNUM */
+ 
+ /* Register to hold the addressing base for position independent
+    code access to data items.  */
+@@ -629,8 +634,6 @@
+ 
+ #define ELIMINABLE_REGS						\
+ {{ FRAME_POINTER_REGNUM, STACK_POINTER_REGNUM},			\
+- { RETURN_ADDRESS_POINTER_REGNUM, STACK_POINTER_REGNUM},	\
+- { RETURN_ADDRESS_POINTER_REGNUM, FRAME_POINTER_REGNUM},	\
+  { ARG_POINTER_REGNUM, STACK_POINTER_REGNUM},			\
+  { ARG_POINTER_REGNUM, FRAME_POINTER_REGNUM},}
+ 
+@@ -1267,9 +1270,28 @@
+    can ignore COUNT.  */
+ 
+ #define RETURN_ADDR_RTX(COUNT, FRAME)	\
+-  (((COUNT) == 0)				\
+-   ? gen_rtx_MEM (Pmode, gen_rtx_REG (Pmode, RETURN_ADDRESS_POINTER_REGNUM)) \
+-   : (rtx) 0)
++  sh_return_addr (COUNT, FRAME)
++
++/* Initialize data used by insn expanders.  This is called from insn_emit,
++   once for every function before code is generated.  */
++
++#define INIT_EXPANDERS  sh_init_expanders ()
++
++/* A C structure for machine-specific, per-function data. This is added
++   to the cfun structure.  */
++
++struct machine_function
++{
++  /* Records __builtin_return address.  */
++  struct rtx_def *ra_rtx;
++};
++
++/* Pick up the return address upon entry to a procedure. Used for
++   dwarf2 unwind information.  This also enables the table driven
++   mechanism.  */
++
++#define INCOMING_RETURN_ADDR_RTX	gen_rtx_REG (Pmode, PR_REG)
++#define DWARF_FRAME_RETURN_COLUMN	DWARF_FRAME_REGNUM (PR_REG)
+ 
+ /* Generate necessary RTL for __builtin_saveregs().  */
+ #define EXPAND_BUILTIN_SAVEREGS() sh_builtin_saveregs ()
+diff -urN gcc-3.0.1.orig/gcc/config/sh/sh.md gcc-3.0.1/gcc/config/sh/sh.md
+--- gcc-3.0.1.orig/gcc/config/sh/sh.md	Tue Jun 26 06:08:32 2001
++++ gcc-3.0.1/gcc/config/sh/sh.md	Mon Sep 10 13:00:56 2001
+@@ -285,7 +285,7 @@
+ 	 (cond [(eq_attr "short_cbranch_p" "yes")
+ 		(const_int 2)
+ 		(eq_attr "med_cbranch_p" "yes")
+-		(const_int 6)
++		(const_int 8)
+ 		(eq_attr "braf_cbranch_p" "yes")
+ 		(const_int 12)
+ ;; ??? using pc is not computed transitively.
+@@ -981,7 +981,7 @@
+    (clobber (reg:SI PR_REG))
+    (clobber (reg:SI R4_REG))
+    (use (match_operand:SI 1 "arith_reg_operand" "r"))]
+-  "! TARGET_SH4"
++  "! TARGET_SH4 || TARGET_NO_FDIV_DIVSI"
+   "jsr	@%1%#"
+   [(set_attr "type" "sfunc")
+    (set_attr "needs_delay_slot" "yes")])
+@@ -1042,7 +1042,7 @@
+ 
+   operands[3] = gen_reg_rtx(SImode);
+   /* Emit the move of the address to a pseudo outside of the libcall.  */
+-  if (TARGET_HARD_SH4 && TARGET_SH3E)
++  if (TARGET_HARD_SH4 && TARGET_SH3E && !TARGET_NO_FDIV_DIVSI)
+     {
+       emit_move_insn (operands[3],
+ 		      gen_rtx_SYMBOL_REF (SImode, \"__udivsi3_i4\"));
+@@ -1076,7 +1076,7 @@
+    (clobber (reg:SI R2_REG))
+    (clobber (reg:SI R3_REG))
+    (use (match_operand:SI 1 "arith_reg_operand" "r"))]
+-  "! TARGET_SH4"
++  "! TARGET_SH4 || TARGET_NO_FDIV_DIVSI"
+   "jsr	@%1%#"
+   [(set_attr "type" "sfunc")
+    (set_attr "needs_delay_slot" "yes")])
+@@ -1128,7 +1128,7 @@
+ 
+   operands[3] = gen_reg_rtx(SImode);
+   /* Emit the move of the address to a pseudo outside of the libcall.  */
+-  if (TARGET_HARD_SH4 && TARGET_SH3E)
++  if (TARGET_HARD_SH4 && TARGET_SH3E && !TARGET_NO_FDIV_DIVSI)
+     {
+       emit_move_insn (operands[3],
+ 		      gen_rtx_SYMBOL_REF (SImode, \"__sdivsi3_i4\"));
+diff -urN gcc-3.0.1.orig/gcc/config/sh/sh3-linux.h gcc-3.0.1/gcc/config/sh/sh3-linux.h
+--- gcc-3.0.1.orig/gcc/config/sh/sh3-linux.h	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/gcc/config/sh/sh3-linux.h	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,31 @@
++#undef TARGET_VERSION
++#define TARGET_VERSION  fputs (" (SH3 GNU/Linux with ELF)", stderr);
++
++#undef CPP_SPEC
++#define CPP_SPEC \
++  "-D__LITTLE_ENDIAN__ \
++   -D__SH3__ -D__sh3__ \
++   %{fPIC:-D__PIC__ -D__pic__} \
++   %{fpic:-D__PIC__ -D__pic__} \
++   %{posix:-D_POSIX_SOURCE} \
++   %{pthread:-D_REENTRANT -D_PTHREADS}"
++
++#undef ASM_SPEC
++#define ASM_SPEC  "%{mrelax:-relax}"
++
++#undef CC1_SPEC
++#define CC1_SPEC \
++  "-musermode -ml -m3"
++
++#undef CC1PLUS_SPEC
++#define CC1PLUS_SPEC \
++  "-musermode -ml -m3"
++
++#undef LINK_SPEC
++#define LINK_SPEC \
++  "%{mrelax:-relax} \
++   %{shared:-shared} \
++   %{!static: \
++     %{rdynamic:-export-dynamic} \
++     %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
++    %{static:-static}"
+diff -urN gcc-3.0.1.orig/gcc/config/sh/sh3eb-linux.h gcc-3.0.1/gcc/config/sh/sh3eb-linux.h
+--- gcc-3.0.1.orig/gcc/config/sh/sh3eb-linux.h	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/gcc/config/sh/sh3eb-linux.h	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,31 @@
++#undef TARGET_VERSION
++#define TARGET_VERSION  fputs (" (SH3EB GNU/Linux with ELF)", stderr);
++
++#undef CPP_SPEC
++#define CPP_SPEC \
++  "-D__BIG_ENDIAN__ \
++   -D__SH3__ -D__sh3__ \
++   %{fPIC:-D__PIC__ -D__pic__} \
++   %{fpic:-D__PIC__ -D__pic__} \
++   %{posix:-D_POSIX_SOURCE} \
++   %{pthread:-D_REENTRANT -D_PTHREADS}"
++
++#undef ASM_SPEC
++#define ASM_SPEC  "%{mrelax:-relax}"
++
++#undef CC1_SPEC
++#define CC1_SPEC \
++  "-musermode -mb -m3"
++
++#undef CC1PLUS_SPEC
++#define CC1PLUS_SPEC \
++  "-musermode -mb -m3"
++
++#undef LINK_SPEC
++#define LINK_SPEC \
++  "%{mrelax:-relax} \
++   %{shared:-shared} \
++   %{!static: \
++     %{rdynamic:-export-dynamic} \
++     %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
++    %{static:-static}"
+diff -urN gcc-3.0.1.orig/gcc/config/sh/sh4-linux.h gcc-3.0.1/gcc/config/sh/sh4-linux.h
+--- gcc-3.0.1.orig/gcc/config/sh/sh4-linux.h	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/gcc/config/sh/sh4-linux.h	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,31 @@
++#undef TARGET_VERSION
++#define TARGET_VERSION  fputs (" (SH4 GNU/Linux with ELF)", stderr);
++
++#undef CPP_SPEC
++#define CPP_SPEC \
++  "-D__LITTLE_ENDIAN__ \
++   -D__SH4__ \
++   %{fPIC:-D__PIC__ -D__pic__} \
++   %{fpic:-D__PIC__ -D__pic__} \
++   %{posix:-D_POSIX_SOURCE} \
++   %{pthread:-D_REENTRANT -D_PTHREADS}"
++
++#undef ASM_SPEC
++#define ASM_SPEC  "%{mrelax:-relax}"
++
++#undef CC1_SPEC
++#define CC1_SPEC \
++  "-musermode -ml -m4"
++
++#undef CC1PLUS_SPEC
++#define CC1PLUS_SPEC \
++  "-musermode -ml -m4"
++
++#undef LINK_SPEC
++#define LINK_SPEC \
++  "%{mrelax:-relax} \
++   %{shared:-shared} \
++   %{!static: \
++     %{rdynamic:-export-dynamic} \
++     %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
++    %{static:-static}"
+diff -urN gcc-3.0.1.orig/gcc/config/sh/sh4eb-linux.h gcc-3.0.1/gcc/config/sh/sh4eb-linux.h
+--- gcc-3.0.1.orig/gcc/config/sh/sh4eb-linux.h	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/gcc/config/sh/sh4eb-linux.h	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,31 @@
++#undef TARGET_VERSION
++#define TARGET_VERSION  fputs (" (SH4EB GNU/Linux with ELF)", stderr);
++
++#undef CPP_SPEC
++#define CPP_SPEC \
++  "-D__BIG_ENDIAN__ \
++   -D__SH4__ \
++   %{fPIC:-D__PIC__ -D__pic__} \
++   %{fpic:-D__PIC__ -D__pic__} \
++   %{posix:-D_POSIX_SOURCE} \
++   %{pthread:-D_REENTRANT -D_PTHREADS}"
++
++#undef ASM_SPEC
++#define ASM_SPEC  "%{mrelax:-relax}"
++
++#undef CC1_SPEC
++#define CC1_SPEC \
++  "-musermode -mb -m4"
++
++#undef CC1PLUS_SPEC
++#define CC1PLUS_SPEC \
++  "-musermode -mb -m4"
++
++#undef LINK_SPEC
++#define LINK_SPEC \
++  "%{mrelax:-relax} \
++   %{shared:-shared} \
++   %{!static: \
++     %{rdynamic:-export-dynamic} \
++     %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
++    %{static:-static}"
+diff -urN gcc-3.0.1.orig/gcc/config/sh/t-linux gcc-3.0.1/gcc/config/sh/t-linux
+--- gcc-3.0.1.orig/gcc/config/sh/t-linux	Wed Sep  6 23:38:34 2000
++++ gcc-3.0.1/gcc/config/sh/t-linux	Mon Sep 10 13:00:56 2001
+@@ -1,11 +1,13 @@
+-TARGET_LIBGCC2_CFLAGS = -fpic
++TARGET_LIBGCC2_CFLAGS =
+ LIBGCC1 = libgcc1-asm.a
++CROSS_LIBGCC1 = libgcc1-asm.a
++LIBGCC1_TEST = libgcc1-test
+ LIB1ASMFUNCS = _ashiftrt _ashiftrt_n _ashiftlt _lshiftrt _movstr \
+   _movstr_i4 _mulsi3 _sdivsi3 _sdivsi3_i4 _udivsi3 _udivsi3_i4 _set_fpscr \
+-  _ic_invalidate
++  _fpscr_values _ic_invalidate
+ 
+-MULTILIB_OPTIONS= mb m3e/m4
+-MULTILIB_DIRNAMES= 
++MULTILIB_OPTIONS= mb m4
++MULTILIB_DIRNAMES= mb m4
+ MULTILIB_MATCHES = 
+ 
+ EXTRA_MULTILIB_PARTS= crtbegin.o crtend.o crtbeginS.o crtendS.o
+diff -urN gcc-3.0.1.orig/gcc/config/sh/t-linux-nomulti gcc-3.0.1/gcc/config/sh/t-linux-nomulti
+--- gcc-3.0.1.orig/gcc/config/sh/t-linux-nomulti	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/gcc/config/sh/t-linux-nomulti	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,11 @@
++LIBGCC = libgcc.a
++EXTRA_PARTS = crtbegin.o crtbeginS.o crtend.o crtendS.o
++
++SHLIB_MAPFILES += $(srcdir)/config/sh/libgcc-sh.ver
++
++INSTALL_LIBGCC = install-libgcc
++
++MULTILIB_OPTIONS=
++MULTILIB_DIRNAMES= 
++MULTILIB_MATCHES = 
++EXTRA_MULTILIB_PARTS=
+diff -urN gcc-3.0.1.orig/gcc/config/sh/xm-sh.h gcc-3.0.1/gcc/config/sh/xm-sh.h
+--- gcc-3.0.1.orig/gcc/config/sh/xm-sh.h	Thu Mar 15 13:02:05 2001
++++ gcc-3.0.1/gcc/config/sh/xm-sh.h	Mon Sep 10 13:00:56 2001
+@@ -23,6 +23,7 @@
+ #define HOST_BITS_PER_SHORT 16
+ #define HOST_BITS_PER_INT 32
+ #define HOST_BITS_PER_LONG 32
++#define HOST_BITS_PER_LONGLONG 64
+ 
+ /* If compiled with GNU C, use the built-in alloca.  */
+ #ifdef __GNUC__
+diff -urN gcc-3.0.1.orig/gcc/config.gcc gcc-3.0.1/gcc/config.gcc
+--- gcc-3.0.1.orig/gcc/config.gcc	Mon Aug 13 10:34:14 2001
++++ gcc-3.0.1/gcc/config.gcc	Mon Sep 10 13:00:56 2001
+@@ -240,6 +240,9 @@
+ sparc*-*-*)
+ 	cpu_type=sparc
+ 	;;
++sh*-*-*)
++	cpu_type=sh
++	;;
+ esac
+ 
+ tm_file=${cpu_type}/${cpu_type}.h
+@@ -3016,9 +3019,29 @@
+ 	  thread_file='rtems'
+ 	fi
+ 	;;
+-sh-*-linux*)
++sh*-*-linux*)
+ 	tm_file="sh/sh.h sh/elf.h sh/linux.h"
+-	tmake_file="sh/t-sh sh/t-elf sh/t-linux"
++	tmake_file="sh/t-sh sh/t-elf t-slibgcc-elf-ver t-linux sh/t-linux"
++	case $machine in
++		sh3eb-*)
++			tm_file="$tm_file sh/sh3eb-linux.h"
++			tmake_file="$tmake_file sh/t-linux-nomulti"
++			;;
++		sh4eb-*)
++			tm_file="$tm_file sh/sh4eb-linux.h"
++			tmake_file="$tmake_file sh/t-linux-nomulti"
++			;;
++		sh3-*)
++			tm_file="$tm_file sh/sh3-linux.h"
++			tmake_file="$tmake_file sh/t-linux-nomulti"
++			;;
++		sh4-*)
++			tm_file="$tm_file sh/sh4-linux.h"
++			tmake_file="$tmake_file sh/t-linux-nomulti"
++			;;
++		*)
++			;;
++	esac
+ 	xmake_file=x-linux
+ 	gas=yes gnu_ld=yes
+ 	if test x$enable_threads = xyes; then
+diff -urN gcc-3.0.1.orig/gcc/doc/gcc.1 gcc-3.0.1/gcc/doc/gcc.1
+--- gcc-3.0.1.orig/gcc/doc/gcc.1	Sun Aug 19 19:45:03 2001
++++ gcc-3.0.1/gcc/doc/gcc.1	Mon Sep 10 13:00:56 2001
+@@ -1,5 +1,5 @@
+ .\" Automatically generated by Pod::Man version 1.16
+-.\" Tue Jul  3 00:41:07 2001
++.\" Thu Aug 23 01:04:28 2001
+ .\"
+ .\" Standard preamble:
+ .\" ======================================================================
+@@ -138,7 +138,7 @@
+ .\" ======================================================================
+ .\"
+ .IX Title "GCC 1"
+-.TH GCC 1 "gcc-3.0.1" "2001-07-03" "GNU"
++.TH GCC 1 "gcc-3.0.1" "2001-08-23" "GNU"
+ .UC
+ .SH "NAME"
+ gcc \- \s-1GNU\s0 project C and \*(C+ compiler
+@@ -215,7 +215,7 @@
+ \&\-fno-elide-constructors 
+ \&\-fno-enforce-eh-specs  \-fexternal-templates 
+ \&\-falt-external-templates 
+-\&\-ffor-scope  \-fno-for-scope  \-fno-gnu-keywords  \-fno-honor-std 
++\&\-ffor-scope  \-fno-for-scope  \-fno-gnu-keywords 
+ \&\-fno-implicit-templates 
+ \&\-fno-implicit-inline-templates 
+ \&\-fno-implement-inlines  \-fms-extensions 
+@@ -594,6 +594,12 @@
+ \&\-mconstant-gp  \-mauto-pic  \-minline-divide-min-latency 
+ \&\-minline-divide-max-throughput  \-mno-dwarf2\-asm 
+ \&\-mfixed-range=\fR\fIregister-range\fR
++.Sp
++\&\fIS/390 and zSeries Options\fR
++.Sp
++\&\fB\-mhard-float  \-msoft-float  \-mbackchain  \-mno-backchain 
++\&\-msmall-exec  \-mno-small-exec  \-mmvcle \-mno-mvcle 
++\&\-m64 \-m31 \-mdebug \-mno-debug\fR
+ .Ip "\fICode Generation Options\fR" 4
+ .IX Item "Code Generation Options"
+ \&\fB\-fcall-saved-\fR\fIreg\fR  \fB\-fcall-used-\fR\fIreg\fR 
+@@ -1234,18 +1240,6 @@
+ Do not recognize \f(CW\*(C`typeof\*(C'\fR as a keyword, so that code can use this
+ word as an identifier.  You can use the keyword \f(CW\*(C`_\|_typeof_\|_\*(C'\fR instead.
+ \&\fB\-ansi\fR implies \fB\-fno-gnu-keywords\fR.
+-.Ip "\fB\-fno-honor-std\fR" 4
+-.IX Item "-fno-honor-std"
+-Ignore \f(CW\*(C`namespace std\*(C'\fR, instead of treating it as a real namespace.
+-With this switch, the compiler will ignore
+-\&\f(CW\*(C`namespace\-declarations\*(C'\fR, \f(CW\*(C`using\-declarations\*(C'\fR,
+-\&\f(CW\*(C`using\-directives\*(C'\fR, and \f(CW\*(C`namespace\-names\*(C'\fR, if they involve
+-\&\f(CW\*(C`std\*(C'\fR.
+-.Sp
+-This option is only useful if you have manually compiled the \*(C+
+-run-time library with the same switch.  Otherwise, your programs will
+-not link.  The use of this option is not recommended, and the option may
+-be removed from a future version of G++.
+ .Ip "\fB\-fno-implicit-templates\fR" 4
+ .IX Item "-fno-implicit-templates"
+ Never emit code for non-inline templates which are instantiated
+@@ -2829,6 +2823,9 @@
+ function inlining, and register renaming.  It also turns on the
+ \&\fB\-fforce-mem\fR option on all machines and frame pointer elimination
+ on machines where doing so does not interfere with debugging.
++.Sp
++Please note the warning under \fB\-fgcse\fR about
++invoking \fB\-O2\fR on programs that use computed gotos.
+ .Ip "\fB\-O3\fR" 4
+ .IX Item "-O3"
+ Optimize yet more.  \fB\-O3\fR turns on all optimizations specified by
+@@ -2931,7 +2928,8 @@
+ inline (ie marked with the inline keyword or defined within the class
+ definition in c++).  \fIn\fR is the size of functions that can be inlined in
+ number of pseudo instructions (not counting parameter handling).  The default
+-value of \fIn\fR is 10000.  Increasing this value can result in more inlined code at
++value of \fIn\fR is 600.
++Increasing this value can result in more inlined code at
+ the cost of compilation time and memory consumption.  Decreasing usually makes
+ the compilation faster and less code will be inlined (which presumably
+ means slower programs).  This option is particularly useful for programs that
+@@ -3031,6 +3029,11 @@
+ .IX Item "-fgcse"
+ Perform a global common subexpression elimination pass.
+ This pass also performs global constant and copy propagation.
++.Sp
++\&\fINote:\fR When compiling a program using computed gotos, a \s-1GCC\s0
++extension, you may get better runtime performance if you disable
++the global common subexpression elmination pass by adding
++\&\fB\-fno-gcse\fR to the command line.
+ .Ip "\fB\-fdelete-null-pointer-checks\fR" 4
+ .IX Item "-fdelete-null-pointer-checks"
+ Use global dataflow analysis to identify and eliminate useless null
+@@ -3322,6 +3325,12 @@
+ order to perform the global common subexpression elimination
+ optimization.  If more memory than specified is required, the
+ optimization will not be done.
++.Ip "\fBmax-pending-list-length\fR" 4
++.IX Item "max-pending-list-length"
++The maximum number of pending dependancies scheduling will allow
++before flushing the current state and starting over.  Large functions
++with few branches or calls can create excessively large lists which
++needlessly consume memory and resources.
+ .Ip "\fBmax-inline-insns\fR" 4
+ .IX Item "max-inline-insns"
+ If an function contains more than this many instructions, it
+@@ -7511,6 +7520,72 @@
+ .IX Item "-mcond-exec=n"
+ Specify the maximum number of conditionally executed instructions that
+ replace a branch.  The default is 4.
++.PP
++.I "S/390 and zSeries Options"
++.IX Subsection "S/390 and zSeries Options"
++.PP
++These are the \fB\-m\fR options defined for the S/390 and zSeries architecture.
++.Ip "\fB\-mhard-float\fR" 4
++.IX Item "-mhard-float"
++.PD 0
++.Ip "\fB\-msoft-float\fR" 4
++.IX Item "-msoft-float"
++.PD
++Use (do not use) the hardware floating-point instructions and registers
++for floating-point operations.  When \fB\-msoft-float\fR is specified,
++functions in \fIlibgcc.a\fR will be used to perform floating-point
++operations.  When \fB\-mhard-float\fR is specified, the compiler
++generates \s-1IEEE\s0 floating-point instructions.  This is the default.
++.Ip "\fB\-mbackchain\fR" 4
++.IX Item "-mbackchain"
++.PD 0
++.Ip "\fB\-mno-backchain\fR" 4
++.IX Item "-mno-backchain"
++.PD
++Generate (or do not generate) code which maintains an explicit 
++backchain within the stack frame that points to the caller's frame.
++This is currently needed to allow debugging.  The default is to
++generate the backchain.
++.Ip "\fB\-msmall-exec\fR" 4
++.IX Item "-msmall-exec"
++.PD 0
++.Ip "\fB\-mno-small-exec\fR" 4
++.IX Item "-mno-small-exec"
++.PD
++Generate (or do not generate) code using the \f(CW\*(C`bras\*(C'\fR instruction 
++to do subroutine calls. 
++This only works reliably if the total executable size does not
++exceed 64k.  The default is to use the \f(CW\*(C`basr\*(C'\fR instruction instead,
++which does not have this limitation.
++.Ip "\fB\-m64\fR" 4
++.IX Item "-m64"
++.PD 0
++.Ip "\fB\-m31\fR" 4
++.IX Item "-m31"
++.PD
++When \fB\-m31\fR is specified, generate code compliant to the
++Linux for S/390 \s-1ABI\s0.  When \fB\-m64\fR is specified, generate
++code compliant to the Linux for zSeries \s-1ABI\s0.  This allows \s-1GCC\s0 in
++particular to generate 64\-bit instructions.  For the \fBs390\fR
++targets, the default is \fB\-m31\fR, while the \fBs390x\fR 
++targets default to \fB\-m64\fR.
++.Ip "\fB\-mmvcle\fR" 4
++.IX Item "-mmvcle"
++.PD 0
++.Ip "\fB\-mno-mvcle\fR" 4
++.IX Item "-mno-mvcle"
++.PD
++Generate (or do not generate) code using the \f(CW\*(C`mvcle\*(C'\fR instruction 
++to perform block moves.  When \fB\-mno-mvcle\fR is specifed,
++use a \f(CW\*(C`mvc\*(C'\fR loop instead.  This is the default.
++.Ip "\fB\-mdebug\fR" 4
++.IX Item "-mdebug"
++.PD 0
++.Ip "\fB\-mno-debug\fR" 4
++.IX Item "-mno-debug"
++.PD
++Print (or do not print) additional debug information when compiling.
++The default is to not print debug information.
+ .Sh "Options for Code Generation Conventions"
+ .IX Subsection "Options for Code Generation Conventions"
+ These machine-independent options control the interface conventions
+diff -urN gcc-3.0.1.orig/gcc/dwarf2out.c gcc-3.0.1/gcc/dwarf2out.c
+--- gcc-3.0.1.orig/gcc/dwarf2out.c	Wed Jul 18 23:51:51 2001
++++ gcc-3.0.1/gcc/dwarf2out.c	Mon Sep 10 13:00:56 2001
+@@ -9511,7 +9511,8 @@
+ 	     we should detect this case and ignore it.  For now, if we have
+ 	     already reported an error, any error at all, then assume that
+ 	     we got here because of a input error, not a dwarf2 bug.  */
+-	  if (errorcount)
++	  if (errorcount
++	      || decl_function_context (decl))
+ 	    return;
+ 	  abort ();
+ 	}
+diff -urN gcc-3.0.1.orig/gcc/except.c gcc-3.0.1/gcc/except.c
+--- gcc-3.0.1.orig/gcc/except.c	Wed Aug  8 16:19:56 2001
++++ gcc-3.0.1/gcc/except.c	Mon Sep 10 13:00:56 2001
+@@ -2042,10 +2042,6 @@
+   int last_call_site = -2;
+   rtx insn, mem;
+ 
+-  mem = change_address (cfun->eh->sjlj_fc, TYPE_MODE (integer_type_node),
+-			plus_constant (XEXP (cfun->eh->sjlj_fc, 0),
+-				       sjlj_fc_call_site_ofs));
+-
+   for (insn = get_insns (); insn ; insn = NEXT_INSN (insn))
+     {
+       struct eh_region *region;
+@@ -2135,6 +2131,9 @@
+ 	}
+ 
+       start_sequence ();
++      mem = change_address (cfun->eh->sjlj_fc, TYPE_MODE (integer_type_node),
++			    plus_constant (XEXP (cfun->eh->sjlj_fc, 0),
++					   sjlj_fc_call_site_ofs));
+       emit_move_insn (mem, GEN_INT (this_call_site));
+       p = get_insns ();
+       end_sequence ();
+@@ -2151,9 +2150,14 @@
+      rtx dispatch_label;
+ {
+   rtx fn_begin, fc, mem, seq;
++  int funcdef_number;
+ 
+   fc = cfun->eh->sjlj_fc;
+ 
++  funcdef_number = (dwarf2out_do_frame () ?
++		    current_funcdef_number + 1:
++		    sjlj_funcdef_number);
++
+   start_sequence ();
+ 
+   /* We're storing this libcall's address into memory instead of
+@@ -2169,7 +2173,7 @@
+   if (cfun->uses_eh_lsda)
+     {
+       char buf[20];
+-      ASM_GENERATE_INTERNAL_LABEL (buf, "LLSDA", sjlj_funcdef_number);
++      ASM_GENERATE_INTERNAL_LABEL (buf, "LLSDA", funcdef_number);
+       emit_move_insn (mem, gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (buf)));
+     }
+   else
+@@ -3542,7 +3546,7 @@
+   if (! cfun->uses_eh_lsda)
+     return;
+ 
+-  funcdef_number = (USING_SJLJ_EXCEPTIONS
++ funcdef_number = ((USING_SJLJ_EXCEPTIONS && ! dwarf2out_do_frame ())
+ 		    ? sjlj_funcdef_number
+ 		    : current_funcdef_number);
+ 
+@@ -3593,7 +3597,7 @@
+ 		       eh_data_format_name (tt_format));
+ 
+ #ifndef HAVE_AS_LEB128
+-  if (USING_SJLJ_EXCEPTIONS)
++  if (USING_SJLJ_EXCEPTIONS && ! dwarf2out_do_frame ())
+     call_site_len = sjlj_size_of_call_site_table ();
+   else
+     call_site_len = dw2_size_of_call_site_table ();
+diff -urN gcc-3.0.1.orig/gcc/flow.c gcc-3.0.1/gcc/flow.c
+--- gcc-3.0.1.orig/gcc/flow.c	Wed Jun  6 02:32:24 2001
++++ gcc-3.0.1/gcc/flow.c	Mon Sep 10 13:00:56 2001
+@@ -4092,7 +4092,9 @@
+ #ifdef AUTO_INC_DEC
+   /* If flow is invoked after reload, we must take existing AUTO_INC
+      expresions into account.  */
++#if 0
+   if (reload_completed)
++#endif
+     {
+       for (; notes; notes = XEXP (notes, 1))
+ 	{
+diff -urN gcc-3.0.1.orig/gcc/gcse.c gcc-3.0.1/gcc/gcse.c
+--- gcc-3.0.1.orig/gcc/gcse.c	Wed Apr 11 13:06:52 2001
++++ gcc-3.0.1/gcc/gcse.c	Mon Sep 10 13:00:56 2001
+@@ -4594,8 +4594,7 @@
+   if (!set)
+     abort ();
+ 
+-  new_insn = emit_insn_after (gen_rtx_SET (VOIDmode, reg, SET_DEST (set)),
+-			      insn);
++  new_insn = emit_insn_after (gen_move_insn (reg, SET_DEST (set)), insn);
+ 
+   /* Keep block number table up to date.  */
+   set_block_num (new_insn, bb);
+diff -urN gcc-3.0.1.orig/gcc/libgcc-std.ver gcc-3.0.1/gcc/libgcc-std.ver
+--- gcc-3.0.1.orig/gcc/libgcc-std.ver	Wed Jun 13 00:05:37 2001
++++ gcc-3.0.1/gcc/libgcc-std.ver	Mon Sep 10 13:00:56 2001
+@@ -77,6 +77,7 @@
+   __trunctfsf2
+   __truncxfdf2
+   __trunctfdf2
++  __unordsf2
+ 
+   # libgcc2 DImode arithmetic (for 32-bit targets).
+   __absvdi2
+@@ -113,6 +114,7 @@
+   __udivdi3
+   __udivmoddi4
+   __umoddi3
++  __unorddf2
+ 
+   # libgcc2 TImode arithmetic (for 64-bit targets).
+   __ashlti3
+diff -urN gcc-3.0.1.orig/gcc/mklibgcc.in gcc-3.0.1/gcc/mklibgcc.in
+--- gcc-3.0.1.orig/gcc/mklibgcc.in	Wed May 16 20:34:29 2001
++++ gcc-3.0.1/gcc/mklibgcc.in	Mon Sep 10 13:00:56 2001
+@@ -330,15 +330,12 @@
+ 
+   if [ "$SHLIB_LINK" ]; then
+     if [ -z "$SHLIB_MULTILIB" ]; then
+-      if [ "$dir" = "." ]; then
+-	shlib_base_name="libgcc_s";
+-      else
+-	shlib_base_name=libgcc_s_`echo $dir | sed s,/,_,g`
+-      fi
++      shlib_base_name="libgcc_s";
+       echo ""
+       echo "${dir}/${shlib_base_name}${SHLIB_EXT}: $shlib_deps"
+       echo "	$SHLIB_LINK" \
+-	 | sed -e "s%@multilib_flags@%$flags%g" \
++	 | sed -e "s%-o %-o $dir/%" -e "s%rm -f%cd $dir; rm -f%" \
++	       -e "s%@multilib_flags@%$flags%g" \
+ 	       -e "s%@multilib_dir@%$dir%g" \
+ 	       -e "s%@shlib_objs@%$libgcc_objs%g" \
+ 	       -e "s%@shlib_base_name@%$shlib_base_name%g" \
+@@ -385,11 +382,7 @@
+   all="$all ${dir}/libgcc.a"
+   if [ "$SHLIB_LINK" ]; then
+     if [ -z "$SHLIB_MULTILIB" ]; then
+-      if [ "$dir" = "." ]; then
+-	suff="";
+-      else
+-	suff=_`echo $dir | sed s,/,_,g`
+-      fi
++      suff="";
+       all="$all ${dir}/libgcc_s${suff}${SHLIB_EXT}"
+     elif [ "$SHLIB_MULTILIB" = "$dir" ]; then
+       all="$all libgcc_s${SHLIB_EXT}"
+@@ -444,13 +437,10 @@
+ 
+   if [ "$SHLIB_LINK" ]; then
+     if [ -z "$SHLIB_MULTILIB" ]; then
+-      if [ "$dir" = "." ]; then
+-	shlib_base_name="libgcc_s";
+-      else
+-	shlib_base_name=libgcc_s_`echo $dir | sed s,/,_,g`
+-      fi
++      shlib_base_name="libgcc_s";
+       echo "	$SHLIB_INSTALL" \
+-	| sed -e "s%@shlib_base_name@%$shlib_base_name%g"
++	| sed -e "s%/@%/$dir/@%g" -e "s%@%$dir/@%" \
++	      -e "s%@shlib_base_name@%$shlib_base_name%g"
+     elif [ "$SHLIB_MULTILIB" = "$dir" ]; then
+       shlib_base_name="libgcc_s";
+       echo "	$SHLIB_INSTALL" \
+diff -urN gcc-3.0.1.orig/gcc/reorg.c gcc-3.0.1/gcc/reorg.c
+--- gcc-3.0.1.orig/gcc/reorg.c	Thu Jul 19 21:39:26 2001
++++ gcc-3.0.1/gcc/reorg.c	Mon Sep 10 13:00:56 2001
+@@ -2388,14 +2388,22 @@
+       if (GET_CODE (insn) == JUMP_INSN
+ 	  && simplejump_p (insn)
+ 	  && slots_filled != slots_to_fill)
+-	delay_list
+-	  = fill_slots_from_thread (insn, const_true_rtx,
+-				    next_active_insn (JUMP_LABEL (insn)),
+-				    NULL, 1, 1,
+-				    own_thread_p (JUMP_LABEL (insn),
+-						  JUMP_LABEL (insn), 0),
+-				    slots_to_fill, &slots_filled,
+-				    delay_list);
++	{
++	  delay_list
++	    = fill_slots_from_thread (insn, const_true_rtx,
++				      next_active_insn (JUMP_LABEL (insn)),
++				      NULL, 1, 1,
++				      own_thread_p (JUMP_LABEL (insn),
++						    JUMP_LABEL (insn), 0),
++				      slots_to_fill, &slots_filled,
++				      delay_list);
++	  if (slots_filled == slots_to_fill)
++	    {
++	      rtx next = next_active_insn (JUMP_LABEL (insn));
++	      if (simplejump_p (next))
++		reorg_redirect_jump (insn, JUMP_LABEL (next));
++	    }
++	}
+ 
+       if (delay_list)
+ 	unfilled_slots_base[i]
+@@ -2791,12 +2799,17 @@
+       /* If this is the `true' thread, we will want to follow the jump,
+ 	 so we can only do this if we have taken everything up to here.  */
+       if (thread_if_true && trial == new_thread)
+-	delay_list
+-	  = steal_delay_list_from_target (insn, condition, PATTERN (trial),
+-					  delay_list, &set, &needed,
+-					  &opposite_needed, slots_to_fill,
+-					  pslots_filled, &must_annul,
+-					  &new_thread);
++	{
++	  delay_list
++	    = steal_delay_list_from_target (insn, condition, PATTERN (trial),
++					    delay_list, &set, &needed,
++					    &opposite_needed, slots_to_fill,
++					    pslots_filled, &must_annul,
++					    &new_thread);
++	  /* If we get NEW_THREAD, we may not own that one.  */
++	  if (own_thread && trial != new_thread)
++	    own_thread = 0;
++	}
+       else if (! thread_if_true)
+ 	delay_list
+ 	  = steal_delay_list_from_fallthrough (insn, condition,
+@@ -2848,8 +2861,11 @@
+ 	    new_arith = gen_rtx_fmt_ee (GET_CODE (src) == PLUS ? MINUS : PLUS,
+ 					GET_MODE (src), dest, other);
+ 
+-	  ninsn = emit_insn_after (gen_rtx_SET (VOIDmode, dest, new_arith),
+-				   insn);
++	  if (condition == const_true_rtx)
++	    ninsn = insn;
++	  else
++	    ninsn = emit_insn_after (gen_rtx_SET (VOIDmode, dest, new_arith),
++				     insn);
+ 
+ 	  if (recog_memoized (ninsn) < 0
+ 	      || (extract_insn (ninsn), ! constrain_operands (1)))
+diff -urN gcc-3.0.1.orig/gcc/sibcall.c gcc-3.0.1/gcc/sibcall.c
+--- gcc-3.0.1.orig/gcc/sibcall.c	Mon Jun  4 15:25:58 2001
++++ gcc-3.0.1/gcc/sibcall.c	Mon Sep 10 13:00:56 2001
+@@ -513,6 +513,9 @@
+ 	alternate_exit = e->src;
+     }
+ 
++  if (doing_eh (0))
++    alternate_exit = EXIT_BLOCK_PTR;
++
+   /* If the function uses ADDRESSOF, we can't (easily) determine
+      at this point if the value will end up on the stack.  */
+   current_function_uses_addressof = sequence_uses_addressof (insns);
+diff -urN gcc-3.0.1.orig/libffi/Makefile.am gcc-3.0.1/libffi/Makefile.am
+--- gcc-3.0.1.orig/libffi/Makefile.am	Thu Apr 12 04:27:03 2001
++++ gcc-3.0.1/libffi/Makefile.am	Mon Sep 10 13:00:56 2001
+@@ -12,7 +12,8 @@
+ 		src/m68k/ffi.c src/m68k/sysv.S \
+ 		src/powerpc/ffi.c src/powerpc/sysv.S \
+                 src/powerpc/ppc_closure.S src/powerpc/asm.h \
+-		src/arm/ffi.c src/arm/sysv.S
++		src/arm/ffi.c src/arm/sysv.S \
++		src/sh/ffi.c src/sh/sysv.S
+ 
+ VPATH = @srcdir@:@srcdir@/src:@srcdir@/src/@TARGETDIR@
+ 
+@@ -98,6 +99,7 @@
+ TARGET_SRC_M68K = src/m68k/ffi.c src/m68k/sysv.S
+ TARGET_SRC_POWERPC = src/powerpc/ffi.c src/powerpc/sysv.S src/powerpc/ppc_closure.S
+ TARGET_SRC_ARM =  src/arm/sysv.S src/arm/ffi.c
++TARGET_SRC_SH =  src/sh/sysv.S src/sh/ffi.c
+ 
+ ##libffi_la_SOURCES = src/debug.c src/prep_cif.c src/types.c $(TARGET_SRC_@TARGET@)
+ ## Work around automake deficiency
+@@ -142,6 +144,10 @@
+ if ARM
+ libffi_la_SOURCES = $(libffi_la_common_SOURCES) $(TARGET_SRC_ARM)
+ libfficonvenience_la_SOURCES = $(libffi_la_common_SOURCES) $(TARGET_SRC_ARM)
++endif
++if SH
++libffi_la_SOURCES = $(libffi_la_common_SOURCES) $(TARGET_SRC_SH)
++libfficonvenience_la_SOURCES = $(libffi_la_common_SOURCES) $(TARGET_SRC_SH)
+ endif
+ 
+ AM_CFLAGS = -fexceptions
+diff -urN gcc-3.0.1.orig/libffi/Makefile.in gcc-3.0.1/libffi/Makefile.in
+--- gcc-3.0.1.orig/libffi/Makefile.in	Thu Apr 12 04:27:03 2001
++++ gcc-3.0.1/libffi/Makefile.in	Mon Sep 10 13:00:56 2001
+@@ -169,6 +169,7 @@
+ TARGET_SRC_M68K = src/m68k/ffi.c src/m68k/sysv.S
+ TARGET_SRC_POWERPC = src/powerpc/ffi.c src/powerpc/sysv.S src/powerpc/ppc_closure.S
+ TARGET_SRC_ARM = src/arm/sysv.S src/arm/ffi.c
++TARGET_SRC_SH = src/sh/sysv.S src/sh/ffi.c
+ 
+ libffi_la_common_SOURCES = src/debug.c src/prep_cif.c src/types.c \
+ 		src/raw_api.c src/java_raw_api.c
+@@ -183,6 +184,7 @@
+ @M68K_TRUE@libffi_la_SOURCES = @M68K_TRUE@$(libffi_la_common_SOURCES) $(TARGET_SRC_M68K)
+ @POWERPC_TRUE@libffi_la_SOURCES = @POWERPC_TRUE@$(libffi_la_common_SOURCES) $(TARGET_SRC_POWERPC)
+ @ARM_TRUE@libffi_la_SOURCES = @ARM_TRUE@$(libffi_la_common_SOURCES) $(TARGET_SRC_ARM)
++@SH_TRUE@libffi_la_SOURCES = @SH_TRUE@$(libffi_la_common_SOURCES) $(TARGET_SRC_SH)
+ @MIPS_GCC_TRUE@libfficonvenience_la_SOURCES = @MIPS_GCC_TRUE@$(libffi_la_common_SOURCES) $(TARGET_SRC_MIPS_GCC)
+ @MIPS_SGI_TRUE@libfficonvenience_la_SOURCES = @MIPS_SGI_TRUE@$(libffi_la_common_SOURCES) $(TARGET_SRC_MIPS_SGI)
+ @X86_TRUE@libfficonvenience_la_SOURCES = @X86_TRUE@$(libffi_la_common_SOURCES) $(TARGET_SRC_X86)
+@@ -193,6 +195,7 @@
+ @M68K_TRUE@libfficonvenience_la_SOURCES = @M68K_TRUE@$(libffi_la_common_SOURCES) $(TARGET_SRC_M68K)
+ @POWERPC_TRUE@libfficonvenience_la_SOURCES = @POWERPC_TRUE@$(libffi_la_common_SOURCES) $(TARGET_SRC_POWERPC)
+ @ARM_TRUE@libfficonvenience_la_SOURCES = @ARM_TRUE@$(libffi_la_common_SOURCES) $(TARGET_SRC_ARM)
++@SH_TRUE@libfficonvenience_la_SOURCES = @SH_TRUE@$(libffi_la_common_SOURCES) $(TARGET_SRC_SH)
+ 
+ AM_CFLAGS = -fexceptions
+ 
+@@ -242,6 +245,9 @@
+ @POWERPC_TRUE@src/prep_cif.lo src/types.lo src/raw_api.lo \
+ @POWERPC_TRUE@src/java_raw_api.lo src/powerpc/ffi.lo \
+ @POWERPC_TRUE@src/powerpc/sysv.lo src/powerpc/ppc_closure.lo
++@SH_TRUE@libfficonvenience_la_OBJECTS =  src/debug.lo src/prep_cif.lo \
++@SH_TRUE@src/types.lo src/raw_api.lo src/java_raw_api.lo \
++@SH_TRUE@src/sh/sysv.lo src/sh/ffi.lo
+ @X86_WIN32_TRUE@libfficonvenience_la_OBJECTS =  src/debug.lo \
+ @X86_WIN32_TRUE@src/prep_cif.lo src/types.lo src/raw_api.lo \
+ @X86_WIN32_TRUE@src/java_raw_api.lo src/x86/ffi.lo src/x86/win32.lo
+@@ -274,6 +280,8 @@
+ @POWERPC_TRUE@src/types.lo src/raw_api.lo src/java_raw_api.lo \
+ @POWERPC_TRUE@src/powerpc/ffi.lo src/powerpc/sysv.lo \
+ @POWERPC_TRUE@src/powerpc/ppc_closure.lo
++@SH_TRUE@libffi_la_OBJECTS =  src/debug.lo src/prep_cif.lo src/types.lo \
++@SH_TRUE@src/raw_api.lo src/java_raw_api.lo src/sh/sysv.lo src/sh/ffi.lo
+ @X86_WIN32_TRUE@libffi_la_OBJECTS =  src/debug.lo src/prep_cif.lo \
+ @X86_WIN32_TRUE@src/types.lo src/raw_api.lo src/java_raw_api.lo \
+ @X86_WIN32_TRUE@src/x86/ffi.lo src/x86/win32.lo
+diff -urN gcc-3.0.1.orig/libffi/configure gcc-3.0.1/libffi/configure
+--- gcc-3.0.1.orig/libffi/configure	Mon Jun 25 14:57:42 2001
++++ gcc-3.0.1/libffi/configure	Mon Sep 10 13:00:56 2001
+@@ -1261,7 +1261,7 @@
+ # This must be Linux ELF.
+ linux-gnu*)
+   case $host_cpu in
+-  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* )
++  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* | sh* )
+     lt_cv_deplibs_check_method=pass_all ;;
+   *)
+     # glibc up to 2.1.1 does not perform some relocations on ARM
+@@ -2382,6 +2382,7 @@
+ powerpc-*-linux* | powerpc-*-sysv*) TARGET=POWERPC; TARGETDIR=powerpc;;
+ powerpc-*-beos*) TARGET=POWERPC; TARGETDIR=powerpc;;
+ arm*-*-linux-*) TARGET=ARM; TARGETDIR=arm;;
++sh*-*-linux-*) TARGET=SH; TARGETDIR=sh;;
+ esac
+ 
+ if test $TARGETDIR = unknown; then
+@@ -2479,8 +2480,17 @@
+   ARM_FALSE=
+ fi
+ 
++
++if test x$TARGET = xSH; then
++  SH_TRUE=
++  SH_FALSE='#'
++else
++  SH_TRUE='#'
++  SH_FALSE=
++fi
++
+ echo $ac_n "checking how to run the C preprocessor""... $ac_c" 1>&6
+-echo "configure:2484: checking how to run the C preprocessor" >&5
++echo "configure:2494: checking how to run the C preprocessor" >&5
+ # On Suns, sometimes $CPP names a directory.
+ if test -n "$CPP" && test -d "$CPP"; then
+   CPP=
+@@ -2495,13 +2505,13 @@
+   # On the NeXT, cc -E runs the code through the compiler's parser,
+   # not just through cpp.
+   cat > conftest.$ac_ext <<EOF
+-#line 2499 "configure"
++#line 2509 "configure"
+ #include "confdefs.h"
+ #include <assert.h>
+ Syntax Error
+ EOF
+ ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
+-{ (eval echo configure:2505: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
++{ (eval echo configure:2515: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+ ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
+ if test -z "$ac_err"; then
+   :
+@@ -2512,13 +2522,13 @@
+   rm -rf conftest*
+   CPP="${CC-cc} -E -traditional-cpp"
+   cat > conftest.$ac_ext <<EOF
+-#line 2516 "configure"
++#line 2526 "configure"
+ #include "confdefs.h"
+ #include <assert.h>
+ Syntax Error
+ EOF
+ ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
+-{ (eval echo configure:2522: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
++{ (eval echo configure:2532: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+ ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
+ if test -z "$ac_err"; then
+   :
+@@ -2529,13 +2539,13 @@
+   rm -rf conftest*
+   CPP="${CC-cc} -nologo -E"
+   cat > conftest.$ac_ext <<EOF
+-#line 2533 "configure"
++#line 2543 "configure"
+ #include "confdefs.h"
+ #include <assert.h>
+ Syntax Error
+ EOF
+ ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
+-{ (eval echo configure:2539: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
++{ (eval echo configure:2549: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+ ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
+ if test -z "$ac_err"; then
+   :
+@@ -2560,12 +2570,12 @@
+ echo "$ac_t""$CPP" 1>&6
+ 
+ echo $ac_n "checking for ANSI C header files""... $ac_c" 1>&6
+-echo "configure:2564: checking for ANSI C header files" >&5
++echo "configure:2574: checking for ANSI C header files" >&5
+ if eval "test \"`echo '$''{'ac_cv_header_stdc'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2569 "configure"
++#line 2579 "configure"
+ #include "confdefs.h"
+ #include <stdlib.h>
+ #include <stdarg.h>
+@@ -2573,7 +2583,7 @@
+ #include <float.h>
+ EOF
+ ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
+-{ (eval echo configure:2577: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
++{ (eval echo configure:2587: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+ ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
+ if test -z "$ac_err"; then
+   rm -rf conftest*
+@@ -2590,7 +2600,7 @@
+ if test $ac_cv_header_stdc = yes; then
+   # SunOS 4.x string.h does not declare mem*, contrary to ANSI.
+ cat > conftest.$ac_ext <<EOF
+-#line 2594 "configure"
++#line 2604 "configure"
+ #include "confdefs.h"
+ #include <string.h>
+ EOF
+@@ -2608,7 +2618,7 @@
+ if test $ac_cv_header_stdc = yes; then
+   # ISC 2.0.2 stdlib.h does not declare free, contrary to ANSI.
+ cat > conftest.$ac_ext <<EOF
+-#line 2612 "configure"
++#line 2622 "configure"
+ #include "confdefs.h"
+ #include <stdlib.h>
+ EOF
+@@ -2629,7 +2639,7 @@
+   :
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2633 "configure"
++#line 2643 "configure"
+ #include "confdefs.h"
+ #include <ctype.h>
+ #define ISLOWER(c) ('a' <= (c) && (c) <= 'z')
+@@ -2640,7 +2650,7 @@
+ exit (0); }
+ 
+ EOF
+-if { (eval echo configure:2644: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:2654: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   :
+ else
+@@ -2666,12 +2676,12 @@
+ for ac_func in memcpy
+ do
+ echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
+-echo "configure:2670: checking for $ac_func" >&5
++echo "configure:2680: checking for $ac_func" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2675 "configure"
++#line 2685 "configure"
+ #include "confdefs.h"
+ /* System header to define __stub macros and hopefully few prototypes,
+     which can conflict with char $ac_func(); below.  */
+@@ -2694,7 +2704,7 @@
+ 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:2698: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:2708: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_func_$ac_func=yes"
+ else
+@@ -2721,19 +2731,19 @@
+ # The Ultrix 4.2 mips builtin alloca declared by alloca.h only works
+ # for constant arguments.  Useless!
+ echo $ac_n "checking for working alloca.h""... $ac_c" 1>&6
+-echo "configure:2725: checking for working alloca.h" >&5
++echo "configure:2735: checking for working alloca.h" >&5
+ if eval "test \"`echo '$''{'ac_cv_header_alloca_h'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2730 "configure"
++#line 2740 "configure"
+ #include "confdefs.h"
+ #include <alloca.h>
+ int main() {
+ char *p = alloca(2 * sizeof(int));
+ ; return 0; }
+ EOF
+-if { (eval echo configure:2737: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:2747: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   ac_cv_header_alloca_h=yes
+ else
+@@ -2754,12 +2764,12 @@
+ fi
+ 
+ echo $ac_n "checking for alloca""... $ac_c" 1>&6
+-echo "configure:2758: checking for alloca" >&5
++echo "configure:2768: checking for alloca" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_alloca_works'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2763 "configure"
++#line 2773 "configure"
+ #include "confdefs.h"
+ 
+ #ifdef __GNUC__
+@@ -2787,7 +2797,7 @@
+ char *p = (char *) alloca(1);
+ ; return 0; }
+ EOF
+-if { (eval echo configure:2791: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:2801: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   ac_cv_func_alloca_works=yes
+ else
+@@ -2819,12 +2829,12 @@
+ 
+ 
+ echo $ac_n "checking whether alloca needs Cray hooks""... $ac_c" 1>&6
+-echo "configure:2823: checking whether alloca needs Cray hooks" >&5
++echo "configure:2833: checking whether alloca needs Cray hooks" >&5
+ if eval "test \"`echo '$''{'ac_cv_os_cray'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2828 "configure"
++#line 2838 "configure"
+ #include "confdefs.h"
+ #if defined(CRAY) && ! defined(CRAY2)
+ webecray
+@@ -2849,12 +2859,12 @@
+ if test $ac_cv_os_cray = yes; then
+ for ac_func in _getb67 GETB67 getb67; do
+   echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
+-echo "configure:2853: checking for $ac_func" >&5
++echo "configure:2863: checking for $ac_func" >&5
+ if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2858 "configure"
++#line 2868 "configure"
+ #include "confdefs.h"
+ /* System header to define __stub macros and hopefully few prototypes,
+     which can conflict with char $ac_func(); below.  */
+@@ -2877,7 +2887,7 @@
+ 
+ ; return 0; }
+ EOF
+-if { (eval echo configure:2881: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
++if { (eval echo configure:2891: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+   rm -rf conftest*
+   eval "ac_cv_func_$ac_func=yes"
+ else
+@@ -2904,7 +2914,7 @@
+ fi
+ 
+ echo $ac_n "checking stack direction for C alloca""... $ac_c" 1>&6
+-echo "configure:2908: checking stack direction for C alloca" >&5
++echo "configure:2918: checking stack direction for C alloca" >&5
+ if eval "test \"`echo '$''{'ac_cv_c_stack_direction'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -2912,7 +2922,7 @@
+   ac_cv_c_stack_direction=0
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2916 "configure"
++#line 2926 "configure"
+ #include "confdefs.h"
+ find_stack_direction ()
+ {
+@@ -2931,7 +2941,7 @@
+   exit (find_stack_direction() < 0);
+ }
+ EOF
+-if { (eval echo configure:2935: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:2945: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_c_stack_direction=1
+ else
+@@ -2954,7 +2964,7 @@
+ 
+ 
+ echo $ac_n "checking size of short""... $ac_c" 1>&6
+-echo "configure:2958: checking size of short" >&5
++echo "configure:2968: checking size of short" >&5
+ if eval "test \"`echo '$''{'ac_cv_sizeof_short'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -2962,9 +2972,10 @@
+     { echo "configure: error: can not run test program while cross compiling" 1>&2; exit 1; }
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 2966 "configure"
++#line 2976 "configure"
+ #include "confdefs.h"
+ #include <stdio.h>
++#include <sys/types.h>
+ main()
+ {
+   FILE *f=fopen("conftestval", "w");
+@@ -2973,7 +2984,7 @@
+   exit(0);
+ }
+ EOF
+-if { (eval echo configure:2977: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:2988: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_sizeof_short=`cat conftestval`
+ else
+@@ -2993,7 +3004,7 @@
+ 
+ 
+ echo $ac_n "checking size of int""... $ac_c" 1>&6
+-echo "configure:2997: checking size of int" >&5
++echo "configure:3008: checking size of int" >&5
+ if eval "test \"`echo '$''{'ac_cv_sizeof_int'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -3001,9 +3012,10 @@
+     { echo "configure: error: can not run test program while cross compiling" 1>&2; exit 1; }
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 3005 "configure"
++#line 3016 "configure"
+ #include "confdefs.h"
+ #include <stdio.h>
++#include <sys/types.h>
+ main()
+ {
+   FILE *f=fopen("conftestval", "w");
+@@ -3012,7 +3024,7 @@
+   exit(0);
+ }
+ EOF
+-if { (eval echo configure:3016: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:3028: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_sizeof_int=`cat conftestval`
+ else
+@@ -3032,7 +3044,7 @@
+ 
+ 
+ echo $ac_n "checking size of long""... $ac_c" 1>&6
+-echo "configure:3036: checking size of long" >&5
++echo "configure:3048: checking size of long" >&5
+ if eval "test \"`echo '$''{'ac_cv_sizeof_long'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -3040,9 +3052,10 @@
+     { echo "configure: error: can not run test program while cross compiling" 1>&2; exit 1; }
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 3044 "configure"
++#line 3056 "configure"
+ #include "confdefs.h"
+ #include <stdio.h>
++#include <sys/types.h>
+ main()
+ {
+   FILE *f=fopen("conftestval", "w");
+@@ -3051,7 +3064,7 @@
+   exit(0);
+ }
+ EOF
+-if { (eval echo configure:3055: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:3068: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_sizeof_long=`cat conftestval`
+ else
+@@ -3071,7 +3084,7 @@
+ 
+ 
+ echo $ac_n "checking size of long long""... $ac_c" 1>&6
+-echo "configure:3075: checking size of long long" >&5
++echo "configure:3088: checking size of long long" >&5
+ if eval "test \"`echo '$''{'ac_cv_sizeof_long_long'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -3079,9 +3092,10 @@
+     { echo "configure: error: can not run test program while cross compiling" 1>&2; exit 1; }
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 3083 "configure"
++#line 3096 "configure"
+ #include "confdefs.h"
+ #include <stdio.h>
++#include <sys/types.h>
+ main()
+ {
+   FILE *f=fopen("conftestval", "w");
+@@ -3090,7 +3104,7 @@
+   exit(0);
+ }
+ EOF
+-if { (eval echo configure:3094: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:3108: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_sizeof_long_long=`cat conftestval`
+ else
+@@ -3110,7 +3124,7 @@
+ 
+ 
+ echo $ac_n "checking size of float""... $ac_c" 1>&6
+-echo "configure:3114: checking size of float" >&5
++echo "configure:3128: checking size of float" >&5
+ if eval "test \"`echo '$''{'ac_cv_sizeof_float'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -3118,9 +3132,10 @@
+     { echo "configure: error: can not run test program while cross compiling" 1>&2; exit 1; }
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 3122 "configure"
++#line 3136 "configure"
+ #include "confdefs.h"
+ #include <stdio.h>
++#include <sys/types.h>
+ main()
+ {
+   FILE *f=fopen("conftestval", "w");
+@@ -3129,7 +3144,7 @@
+   exit(0);
+ }
+ EOF
+-if { (eval echo configure:3133: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:3148: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_sizeof_float=`cat conftestval`
+ else
+@@ -3149,7 +3164,7 @@
+ 
+ 
+ echo $ac_n "checking size of double""... $ac_c" 1>&6
+-echo "configure:3153: checking size of double" >&5
++echo "configure:3168: checking size of double" >&5
+ if eval "test \"`echo '$''{'ac_cv_sizeof_double'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -3157,9 +3172,10 @@
+     { echo "configure: error: can not run test program while cross compiling" 1>&2; exit 1; }
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 3161 "configure"
++#line 3176 "configure"
+ #include "confdefs.h"
+ #include <stdio.h>
++#include <sys/types.h>
+ main()
+ {
+   FILE *f=fopen("conftestval", "w");
+@@ -3168,7 +3184,7 @@
+   exit(0);
+ }
+ EOF
+-if { (eval echo configure:3172: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:3188: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_sizeof_double=`cat conftestval`
+ else
+@@ -3188,7 +3204,7 @@
+ 
+ 
+ echo $ac_n "checking size of long double""... $ac_c" 1>&6
+-echo "configure:3192: checking size of long double" >&5
++echo "configure:3208: checking size of long double" >&5
+ if eval "test \"`echo '$''{'ac_cv_sizeof_long_double'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -3196,9 +3212,10 @@
+     { echo "configure: error: can not run test program while cross compiling" 1>&2; exit 1; }
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 3200 "configure"
++#line 3216 "configure"
+ #include "confdefs.h"
+ #include <stdio.h>
++#include <sys/types.h>
+ main()
+ {
+   FILE *f=fopen("conftestval", "w");
+@@ -3207,7 +3224,7 @@
+   exit(0);
+ }
+ EOF
+-if { (eval echo configure:3211: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:3228: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_sizeof_long_double=`cat conftestval`
+ else
+@@ -3228,7 +3245,7 @@
+ 
+ 
+ echo $ac_n "checking size of void *""... $ac_c" 1>&6
+-echo "configure:3232: checking size of void *" >&5
++echo "configure:3249: checking size of void *" >&5
+ if eval "test \"`echo '$''{'ac_cv_sizeof_void_p'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+@@ -3236,9 +3253,10 @@
+     { echo "configure: error: can not run test program while cross compiling" 1>&2; exit 1; }
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 3240 "configure"
++#line 3257 "configure"
+ #include "confdefs.h"
+ #include <stdio.h>
++#include <sys/types.h>
+ main()
+ {
+   FILE *f=fopen("conftestval", "w");
+@@ -3247,7 +3265,7 @@
+   exit(0);
+ }
+ EOF
+-if { (eval echo configure:3251: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:3269: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_sizeof_void_p=`cat conftestval`
+ else
+@@ -3267,14 +3285,14 @@
+ 
+ 
+ echo $ac_n "checking whether byte ordering is bigendian""... $ac_c" 1>&6
+-echo "configure:3271: checking whether byte ordering is bigendian" >&5
++echo "configure:3289: checking whether byte ordering is bigendian" >&5
+ if eval "test \"`echo '$''{'ac_cv_c_bigendian'+set}'`\" = set"; then
+   echo $ac_n "(cached) $ac_c" 1>&6
+ else
+   ac_cv_c_bigendian=unknown
+ # See if sys/param.h defines the BYTE_ORDER macro.
+ cat > conftest.$ac_ext <<EOF
+-#line 3278 "configure"
++#line 3296 "configure"
+ #include "confdefs.h"
+ #include <sys/types.h>
+ #include <sys/param.h>
+@@ -3285,11 +3303,11 @@
+ #endif
+ ; return 0; }
+ EOF
+-if { (eval echo configure:3289: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:3307: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   # It does; now see whether it defined to BIG_ENDIAN or not.
+ cat > conftest.$ac_ext <<EOF
+-#line 3293 "configure"
++#line 3311 "configure"
+ #include "confdefs.h"
+ #include <sys/types.h>
+ #include <sys/param.h>
+@@ -3300,7 +3318,7 @@
+ #endif
+ ; return 0; }
+ EOF
+-if { (eval echo configure:3304: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
++if { (eval echo configure:3322: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+   rm -rf conftest*
+   ac_cv_c_bigendian=yes
+ else
+@@ -3320,7 +3338,7 @@
+     { echo "configure: error: can not run test program while cross compiling" 1>&2; exit 1; }
+ else
+   cat > conftest.$ac_ext <<EOF
+-#line 3324 "configure"
++#line 3342 "configure"
+ #include "confdefs.h"
+ main () {
+   /* Are we little or big endian?  From Harbison&Steele.  */
+@@ -3333,7 +3351,7 @@
+   exit (u.c[sizeof (long) - 1] == 1);
+ }
+ EOF
+-if { (eval echo configure:3337: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
++if { (eval echo configure:3355: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+ then
+   ac_cv_c_bigendian=no
+ else
+@@ -3603,6 +3621,8 @@
+ s%@POWERPC_FALSE@%$POWERPC_FALSE%g
+ s%@ARM_TRUE@%$ARM_TRUE%g
+ s%@ARM_FALSE@%$ARM_FALSE%g
++s%@SH_TRUE@%$SH_TRUE%g
++s%@SH_FALSE@%$SH_FALSE%g
+ s%@CPP@%$CPP%g
+ s%@ALLOCA@%$ALLOCA%g
+ s%@TARGET@%$TARGET%g
+diff -urN gcc-3.0.1.orig/libffi/configure.in gcc-3.0.1/libffi/configure.in
+--- gcc-3.0.1.orig/libffi/configure.in	Mon Jun 25 14:57:42 2001
++++ gcc-3.0.1/libffi/configure.in	Mon Sep 10 13:00:56 2001
+@@ -57,6 +57,7 @@
+ powerpc-*-linux* | powerpc-*-sysv*) TARGET=POWERPC; TARGETDIR=powerpc;;
+ powerpc-*-beos*) TARGET=POWERPC; TARGETDIR=powerpc;;
+ arm*-*-linux-*) TARGET=ARM; TARGETDIR=arm;;
++sh*-*-linux-*) TARGET=SH; TARGETDIR=sh;;
+ esac
+ 
+ if test $TARGETDIR = unknown; then
+@@ -73,6 +74,7 @@
+ AM_CONDITIONAL(M68K, test x$TARGET = xM68K)
+ AM_CONDITIONAL(POWERPC, test x$TARGET = xPOWERPC)
+ AM_CONDITIONAL(ARM, test x$TARGET = xARM)
++AM_CONDITIONAL(SH, test x$TARGET = xSH)
+ 
+ AC_HEADER_STDC
+ AC_CHECK_FUNCS(memcpy)
+diff -urN gcc-3.0.1.orig/libffi/include/ffi.h.in gcc-3.0.1/libffi/include/ffi.h.in
+--- gcc-3.0.1.orig/libffi/include/ffi.h.in	Mon Mar 26 18:58:23 2001
++++ gcc-3.0.1/libffi/include/ffi.h.in	Mon Sep 10 13:00:56 2001
+@@ -241,6 +241,12 @@
+   FFI_DEFAULT_ABI = FFI_SYSV,
+ #endif
+ 
++  /* ---- SuperH ------------------- */
++#ifdef SH
++  FFI_SYSV,
++  FFI_DEFAULT_ABI = FFI_SYSV,
++#endif
++
+   /* Leave this for debugging purposes */
+   FFI_LAST_ABI
+ 
+diff -urN gcc-3.0.1.orig/libffi/src/sh/ffi.c gcc-3.0.1/libffi/src/sh/ffi.c
+--- gcc-3.0.1.orig/libffi/src/sh/ffi.c	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/libffi/src/sh/ffi.c	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,454 @@
++/* -----------------------------------------------------------------------
++   ffi.c - Copyright (c) 1998 Cygnus Solutions
++   
++   SuperH Foreign Function Interface 
++
++   Permission is hereby granted, free of charge, to any person obtaining
++   a copy of this software and associated documentation files (the
++   ``Software''), to deal in the Software without restriction, including
++   without limitation the rights to use, copy, modify, merge, publish,
++   distribute, sublicense, and/or sell copies of the Software, and to
++   permit persons to whom the Software is furnished to do so, subject to
++   the following conditions:
++
++   The above copyright notice and this permission notice shall be included
++   in all copies or substantial portions of the Software.
++
++   THE SOFTWARE IS PROVIDED ``AS IS'', WITHOUT WARRANTY OF ANY KIND, EXPRESS
++   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++   IN NO EVENT SHALL CYGNUS SOLUTIONS BE LIABLE FOR ANY CLAIM, DAMAGES OR
++   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
++   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
++   OTHER DEALINGS IN THE SOFTWARE.
++   ----------------------------------------------------------------------- */
++
++#include <ffi.h>
++#include <ffi_common.h>
++
++#include <stdlib.h>
++
++#define NGREGARG 4
++#if defined(__SH4__)
++#define NFREGARG 8
++#endif
++
++#if defined(__HITACHI__)
++#define STRUCT_VALUE_ADDRESS_WITH_ARG 1
++#else
++#define STRUCT_VALUE_ADDRESS_WITH_ARG 0
++#endif
++
++/* If the structure has essentialy an unique element, return its type.  */
++static int
++simple_type (ffi_type *arg)
++{
++  if (arg->type != FFI_TYPE_STRUCT)
++    return arg->type;
++  else if (arg->elements[1])
++    return FFI_TYPE_STRUCT;
++
++  return simple_type (arg->elements[0]);
++}
++
++static int
++return_type (ffi_type *arg)
++{
++  unsigned short type;
++
++  if (arg->type != FFI_TYPE_STRUCT)
++    return arg->type;
++
++  type = simple_type (arg->elements[0]);
++  if (! arg->elements[1])
++    {
++      switch (type)
++	{
++	case FFI_TYPE_SINT8:
++	case FFI_TYPE_UINT8:
++	case FFI_TYPE_SINT16:
++	case FFI_TYPE_UINT16:
++	case FFI_TYPE_SINT32:
++	case FFI_TYPE_UINT32:
++	  return FFI_TYPE_INT;
++
++	default:
++	  return type;
++	}
++    }
++
++  /* gcc uses r0/r1 pair for some kind of structures.  */
++  if (arg->size <= 2 * sizeof (int))
++    {
++      int i = 0;
++      ffi_type *e;
++
++      while ((e = arg->elements[i++]))
++	{
++	  type = simple_type (e);
++	  switch (type)
++	    {
++	    case FFI_TYPE_SINT32:
++	    case FFI_TYPE_UINT32:
++	    case FFI_TYPE_INT:
++	    case FFI_TYPE_FLOAT:
++	      return FFI_TYPE_UINT64;
++
++	    default:
++	      break;
++	    }
++	}
++    }
++
++  return FFI_TYPE_STRUCT;
++}
++
++/* ffi_prep_args is called by the assembly routine once stack space
++   has been allocated for the function's arguments */
++
++/*@-exportheader@*/
++void ffi_prep_args(char *stack, extended_cif *ecif)
++/*@=exportheader@*/
++{
++  register unsigned int i;
++  register int tmp;
++  register unsigned int avn;
++  register void **p_argv;
++  register char *argp;
++  register ffi_type **p_arg;
++  int greg, ireg;
++#if defined(__SH4__)
++  int freg = 0;
++#endif
++
++  tmp = 0;
++  argp = stack;
++
++  if (return_type (ecif->cif->rtype) == FFI_TYPE_STRUCT)
++    {
++      *(void **) argp = ecif->rvalue;
++      argp += 4;
++      ireg = STRUCT_VALUE_ADDRESS_WITH_ARG ? 1 : 0;
++    }
++  else
++    ireg = 0;
++
++  /* Set arguments for registers.  */
++  greg = ireg;
++  avn = ecif->cif->nargs;
++  p_argv = ecif->avalue;
++
++  for (i = 0, p_arg = ecif->cif->arg_types; i < avn; i++, p_arg++, p_argv++)
++    {
++      size_t z;
++
++      z = (*p_arg)->size;
++      if (z < sizeof(int))
++	{
++	  if (greg++ >= NGREGARG)
++	    continue;
++
++	  z = sizeof(int);
++	  switch ((*p_arg)->type)
++	    {
++	    case FFI_TYPE_SINT8:
++	      *(signed int *) argp = (signed int)*(SINT8 *)(* p_argv);
++	      break;
++  
++	    case FFI_TYPE_UINT8:
++	      *(unsigned int *) argp = (unsigned int)*(UINT8 *)(* p_argv);
++	      break;
++  
++	    case FFI_TYPE_SINT16:
++	      *(signed int *) argp = (signed int)*(SINT16 *)(* p_argv);
++	      break;
++  
++	    case FFI_TYPE_UINT16:
++	      *(unsigned int *) argp = (unsigned int)*(UINT16 *)(* p_argv);
++	      break;
++  
++	    case FFI_TYPE_STRUCT:
++	      *(unsigned int *) argp = (unsigned int)*(UINT32 *)(* p_argv);
++	      break;
++
++	    default:
++	      FFI_ASSERT(0);
++	    }
++	  argp += z;
++	}
++      else if (z == sizeof(int))
++	{
++#if defined(__SH4__)
++	  if ((*p_arg)->type == FFI_TYPE_FLOAT)
++	    {
++	      if (freg++ >= NFREGARG)
++		continue;
++	    }
++	  else
++#endif
++	    {
++	      if (greg++ >= NGREGARG)
++		continue;
++	    }
++	  *(unsigned int *) argp = (unsigned int)*(UINT32 *)(* p_argv);
++	  argp += z;
++	}
++#if defined(__SH4__)
++      else if ((*p_arg)->type == FFI_TYPE_DOUBLE)
++	{
++	  if (freg + 1 >= NFREGARG)
++	    continue;
++	  freg = (freg + 1) & ~1;
++	  freg += 2;
++	  memcpy (argp, *p_argv, z);
++	  argp += z;
++	}
++#endif
++      else
++	{
++	  int n = (z + sizeof (int) - 1) / sizeof (int);
++	  if (greg + n - 1 >= NGREGARG)
++	    continue;
++	  greg += n;
++	  memcpy (argp, *p_argv, z);
++	  argp += z;
++	}
++    }
++
++  /* Set arguments on stack.  */
++  greg = ireg;
++#if defined(__SH4__)
++  freg = 0;
++#endif
++  p_argv = ecif->avalue;
++
++  for (i = 0, p_arg = ecif->cif->arg_types; i < avn; i++, p_arg++, p_argv++)
++    {
++      size_t z;
++
++      z = (*p_arg)->size;
++      if (z < sizeof(int))
++	{
++	  if (greg++ < NGREGARG)
++	    continue;
++
++	  z = sizeof(int);
++	  switch ((*p_arg)->type)
++	    {
++	    case FFI_TYPE_SINT8:
++	      *(signed int *) argp = (signed int)*(SINT8 *)(* p_argv);
++	      break;
++  
++	    case FFI_TYPE_UINT8:
++	      *(unsigned int *) argp = (unsigned int)*(UINT8 *)(* p_argv);
++	      break;
++  
++	    case FFI_TYPE_SINT16:
++	      *(signed int *) argp = (signed int)*(SINT16 *)(* p_argv);
++	      break;
++  
++	    case FFI_TYPE_UINT16:
++	      *(unsigned int *) argp = (unsigned int)*(UINT16 *)(* p_argv);
++	      break;
++  
++	    case FFI_TYPE_STRUCT:
++	      *(unsigned int *) argp = (unsigned int)*(UINT32 *)(* p_argv);
++	      break;
++
++	    default:
++	      FFI_ASSERT(0);
++	    }
++	  argp += z;
++	}
++      else if (z == sizeof(int))
++	{
++#if defined(__SH4__)
++	  if ((*p_arg)->type == FFI_TYPE_FLOAT)
++	    {
++	      if (freg++ < NFREGARG)
++		continue;
++	    }
++	  else
++#endif
++	    {
++	      if (greg++ < NGREGARG)
++		continue;
++	    }
++	  *(unsigned int *) argp = (unsigned int)*(UINT32 *)(* p_argv);
++	  argp += z;
++	}
++#if defined(__SH4__)
++      else if ((*p_arg)->type == FFI_TYPE_DOUBLE)
++	{
++	  if (freg + 1 < NFREGARG)
++	    {
++	      freg = (freg + 1) & ~1;
++	      freg += 2;
++	      continue;
++	    }
++	  memcpy (argp, *p_argv, z);
++	  argp += z;
++	}
++#endif
++      else
++	{
++	  int n = (z + sizeof (int) - 1) / sizeof (int);
++	  if (greg + n - 1 < NGREGARG)
++	    {
++	      greg += n;
++	      continue;
++	    }
++	  memcpy (argp, *p_argv, z);
++	  argp += z;
++	}
++    }
++
++  return;
++}
++
++/* Perform machine dependent cif processing */
++ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
++{
++  int i, j;
++  int size, type;
++  int n, m;
++  int greg;
++#if defined(__SH4__)
++  int freg = 0;
++#endif
++
++  cif->flags = 0;
++
++  greg = ((return_type (cif->rtype) == FFI_TYPE_STRUCT) &&
++	  STRUCT_VALUE_ADDRESS_WITH_ARG) ? 1 : 0;
++
++#if defined(__SH4__)
++  for (i = j = 0; i < cif->nargs && j < 12; i++)
++    {
++      type = (cif->arg_types)[i]->type;
++      switch (type)
++	{
++	case FFI_TYPE_FLOAT:
++	  if (freg >= NFREGARG)
++	    continue;
++	  freg++;
++	  cif->flags += ((cif->arg_types)[i]->type) << (2 * j);
++	  j++;
++	  break;
++
++	case FFI_TYPE_DOUBLE:
++	  if ((freg + 1) >= NFREGARG)
++	    continue;
++	  freg = (freg + 1) & ~1;
++	  freg += 2;
++	  cif->flags += ((cif->arg_types)[i]->type) << (2 * j);
++	  j++;
++	  break;
++	      
++	default:
++	  size = (cif->arg_types)[i]->size;
++	  n = (size + sizeof (int) - 1) / sizeof (int);
++	  if (greg + n - 1 >= NGREGARG)
++		continue;
++	  greg += n;
++	  for (m = 0; m < n; m++)
++	    cif->flags += FFI_TYPE_INT << (2 * j++);
++	  break;
++	}
++    }
++#else
++  for (i = 0; i < cif->nargs && j < 4; i++)
++    {
++      type = cif->arg_types)[i]->type;
++      switch (type)
++	{
++	case FFI_TYPE_DOUBLE:
++	  cif->flags += ((cif->arg_types)[i]->type) << (2 * j);
++	  j++;
++	  break;
++
++	default:
++	  size = (cif->arg_types)[i]->size;
++	  n = (size + sizeof (int) - 1) / sizeof (int);
++	  if (greg + n - 1 >= NGREGARG)
++		continue;
++	  greg += n;
++	  for (m = 0; m < n; m++)
++	    cif->flags += FFI_TYPE_INT << (2 * j++);
++	  break;
++	  
++	  break;
++	}
++    }
++#endif
++
++  /* Set the return type flag */
++  switch (cif->rtype->type)
++    {
++    case FFI_TYPE_STRUCT:
++      cif->flags += (unsigned) (return_type (cif->rtype)) << 24;
++      break;
++
++    case FFI_TYPE_VOID:
++    case FFI_TYPE_FLOAT:
++    case FFI_TYPE_DOUBLE:
++    case FFI_TYPE_SINT64:
++    case FFI_TYPE_UINT64:
++      cif->flags += (unsigned) cif->rtype->type << 24;
++      break;
++
++    default:
++      cif->flags += FFI_TYPE_INT << 24;
++      break;
++    }
++
++  return FFI_OK;
++}
++
++/*@-declundef@*/
++/*@-exportheader@*/
++extern void ffi_call_SYSV(void (*)(char *, extended_cif *), 
++			  /*@out@*/ extended_cif *, 
++			  unsigned, unsigned, 
++			  /*@out@*/ unsigned *, 
++			  void (*fn)());
++/*@=declundef@*/
++/*@=exportheader@*/
++
++void ffi_call(/*@dependent@*/ ffi_cif *cif, 
++	      void (*fn)(), 
++	      /*@out@*/ void *rvalue, 
++	      /*@dependent@*/ void **avalue)
++{
++  extended_cif ecif;
++
++  ecif.cif = cif;
++  ecif.avalue = avalue;
++  
++  /* If the return value is a struct and we don't have a return	*/
++  /* value address then we need to make one		        */
++
++  if ((rvalue == NULL) && 
++      (cif->rtype->type == FFI_TYPE_STRUCT))
++    {
++      /*@-sysunrecog@*/
++      ecif.rvalue = alloca(cif->rtype->size);
++      /*@=sysunrecog@*/
++    }
++  else
++    ecif.rvalue = rvalue;
++    
++
++  switch (cif->abi) 
++    {
++    case FFI_SYSV:
++      /*@-usedef@*/
++      ffi_call_SYSV(ffi_prep_args, &ecif, cif->bytes, 
++		    cif->flags, ecif.rvalue, fn);
++      /*@=usedef@*/
++      break;
++    default:
++      FFI_ASSERT(0);
++      break;
++    }
++}
+diff -urN gcc-3.0.1.orig/libffi/src/sh/sysv.S gcc-3.0.1/libffi/src/sh/sysv.S
+--- gcc-3.0.1.orig/libffi/src/sh/sysv.S	Wed Dec 31 18:00:00 1969
++++ gcc-3.0.1/libffi/src/sh/sysv.S	Mon Sep 10 13:00:56 2001
+@@ -0,0 +1,500 @@
++/* -----------------------------------------------------------------------
++   sysv.S - Copyright (c) 1998 Cygnus Solutions
++   
++   SuperH Foreign Function Interface 
++
++   Permission is hereby granted, free of charge, to any person obtaining
++   a copy of this software and associated documentation files (the
++   ``Software''), to deal in the Software without restriction, including
++   without limitation the rights to use, copy, modify, merge, publish,
++   distribute, sublicense, and/or sell copies of the Software, and to
++   permit persons to whom the Software is furnished to do so, subject to
++   the following conditions:
++
++   The above copyright notice and this permission notice shall be included
++   in all copies or substantial portions of the Software.
++
++   THE SOFTWARE IS PROVIDED ``AS IS'', WITHOUT WARRANTY OF ANY KIND, EXPRESS
++   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++   IN NO EVENT SHALL CYGNUS SOLUTIONS BE LIABLE FOR ANY CLAIM, DAMAGES OR
++   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
++   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
++   OTHER DEALINGS IN THE SOFTWARE.
++   ----------------------------------------------------------------------- */
++
++#define LIBFFI_ASM	
++#include <ffi.h>
++#ifdef HAVE_MACHINE_ASM_H
++#include <machine/asm.h>
++#else
++/* XXX these lose for some platforms, I'm sure. */
++#define CNAME(x) x
++#define ENTRY(x) .globl CNAME(x); .type CNAME(x),%function; CNAME(x):
++#endif
++
++#if defined(__HITACHI__)
++#define STRUCT_VALUE_ADDRESS_WITH_ARG 1
++#else
++#define STRUCT_VALUE_ADDRESS_WITH_ARG 0
++#endif
++
++.text
++
++	# r4:	ffi_prep_args
++	# r5:	&ecif
++	# r6:	bytes
++	# r7:	flags
++	# sp+0: rvalue
++	# sp+4: fn
++
++	# This assumes we are using gas.
++ENTRY(ffi_call_SYSV)
++#if defined(__SH4__)
++	# Save registers
++	mov.l	r8,@-r15
++	mov.l	r9,@-r15
++	mov.l	r10,@-r15
++	mov.l	r12,@-r15
++	mov.l	r14,@-r15
++	sts.l	pr,@-r15
++	mov	r15,r14
++
++	mov	r6,r8
++	mov	r7,r9
++
++	sub	r6,r15
++	add	#-16,r15
++	mov	#~7,r0
++	and	r0,r15
++
++	mov	r4,r0
++	jsr	@r0
++	 mov	r15,r4
++
++	mov	r9,r1
++	shlr8	r9
++	shlr8	r9
++	shlr8	r9
++
++	mov	#FFI_TYPE_STRUCT,r2
++	cmp/eq	r2,r9
++	bf	1f
++#if STRUCT_VALUE_ADDRESS_WITH_ARG
++ 	mov.l	@r15+,r4
++	bra	2f
++	 mov	#5,r2
++#else
++ 	mov.l	@r15+,r10
++#endif
++1:
++	mov	#4,r2
++2:
++	mov	#4,r3
++
++L_pass:
++	cmp/pl	r8
++	bf	L_call_it
++
++	mov	r1,r0
++	and	#3,r0
++
++L_pass_d:
++	cmp/eq	#FFI_TYPE_DOUBLE,r0
++	bf	L_pass_f
++
++	mov	r3,r0
++	and	#1,r0
++	tst	r0,r0
++	bt	1f
++	add	#1,r3
++1:
++	mov	r15,r0
++	and	#7,r0
++	tst	r0,r0
++	bt	2f
++	add	#4,r15
++2:
++	mov	#12,r0
++	cmp/hs	r0,r3
++	bt/s	3f
++	 shlr2	r1
++	bsr	L_pop_d
++	 nop
++3:
++	add	#2,r3
++	bra	L_pass
++	 add	#-8,r8
++
++L_pop_d:
++	mov	r3,r0
++	add	r0,r0
++	add	r3,r0
++	add	#-12,r0
++	braf	r0
++	 nop
++#ifdef __LITTLE_ENDIAN__
++	fmov.s	@r15+,fr5
++	rts
++	 fmov.s	@r15+,fr4
++	fmov.s	@r15+,fr7
++	rts
++	 fmov.s	@r15+,fr6
++	fmov.s	@r15+,fr9
++	rts
++	 fmov.s	@r15+,fr8
++	fmov.s	@r15+,fr11
++	rts
++	 fmov.s	@r15+,fr10
++#else
++	fmov.s	@r15+,fr4
++	rts
++	 fmov.s	@r15+,fr5
++	fmov.s	@r15+,fr6
++	rts
++	 fmov.s	@r15+,fr7
++	fmov.s	@r15+,fr8
++	rts
++	 fmov.s	@r15+,fr9
++	fmov.s	@r15+,fr10
++	rts
++	 fmov.s	@r15+,fr11
++#endif
++
++L_pass_f:
++	cmp/eq	#FFI_TYPE_FLOAT,r0
++	bf	L_pass_i
++
++	mov	#12,r0
++	cmp/hs	r0,r3
++	bt/s	2f
++	 shlr2	r1
++	bsr	L_pop_f
++	 nop
++2:
++	add	#1,r3
++	bra	L_pass
++	 add	#-4,r8
++
++L_pop_f:
++	mov	r3,r0
++	shll2	r0
++	add	#-16,r0
++	braf	r0
++	 nop
++#ifdef __LITTLE_ENDIAN__
++	rts
++	 fmov.s	@r15+,fr5
++	rts
++	 fmov.s	@r15+,fr4
++	rts
++	 fmov.s	@r15+,fr7
++	rts
++	 fmov.s	@r15+,fr6
++	rts
++	 fmov.s	@r15+,fr9
++	rts
++	 fmov.s	@r15+,fr8
++	rts
++	 fmov.s	@r15+,fr11
++	rts
++	 fmov.s	@r15+,fr10
++#else
++	rts
++	 fmov.s	@r15+,fr4
++	rts
++	 fmov.s	@r15+,fr5
++	rts
++	 fmov.s	@r15+,fr6
++	rts
++	 fmov.s	@r15+,fr7
++	rts
++	 fmov.s	@r15+,fr8
++	rts
++	 fmov.s	@r15+,fr9
++	rts
++	 fmov.s	@r15+,fr10
++	rts
++	 fmov.s	@r15+,fr11
++#endif
++
++L_pass_i:
++	cmp/eq	#FFI_TYPE_INT,r0
++	bf	L_call_it
++
++	mov	#8,r0
++	cmp/hs	r0,r2
++	bt/s	2f
++	 shlr2	r1
++	bsr	L_pop_i
++	 nop
++2:
++	add	#1,r2
++	bra	L_pass
++	 add	#-4,r8
++
++L_pop_i:
++	mov	r2,r0
++	shll2	r0
++	add	#-16,r0
++	braf	r0
++	 nop
++	rts
++	 mov.l	@r15+,r4
++	rts
++	 mov.l	@r15+,r5
++	rts
++	 mov.l	@r15+,r6
++	rts
++	 mov.l	@r15+,r7
++
++L_call_it:
++	# call function
++#if (! STRUCT_VALUE_ADDRESS_WITH_ARG)
++	mov	r10, r2
++#endif
++	mov.l  @(28,r14),r1
++	jsr    @r1
++	 nop
++
++L_ret_d:
++	mov	#FFI_TYPE_DOUBLE,r2
++	cmp/eq	r2,r9
++	bf	L_ret_ll
++
++	mov.l	@(24,r14),r1
++#ifdef __LITTLE_ENDIAN__
++	fmov.s	fr1,@r1
++	add	#4,r1
++	bra	L_epilogue
++	 fmov.s	fr0,@r1
++#else
++	fmov.s	fr0,@r1
++	add	#4,r1
++	bra	L_epilogue
++	 fmov.s	fr1,@r1
++#endif
++
++L_ret_ll:
++	mov	#FFI_TYPE_SINT64,r2
++	cmp/eq	r2,r9
++	bt/s	1f
++	 mov	#FFI_TYPE_UINT64,r2
++	cmp/eq	r2,r9
++	bf	L_ret_f
++
++1:
++	mov.l	@(24,r14),r2
++	mov.l	r0,@r2
++	bra	L_epilogue
++	 mov.l	r1,@(4,r2)
++
++L_ret_f:
++	mov	#FFI_TYPE_FLOAT,r2
++	cmp/eq	r2,r9
++	bf	L_ret_i
++
++	mov.l	@(24,r14),r1
++	bra	L_epilogue
++	 fmov.s	fr0,@r1
++
++L_ret_i:
++	mov	#FFI_TYPE_INT,r2
++	cmp/eq	r2,r9
++	bf	L_epilogue
++
++	mov.l	@(24,r14),r1
++	bra	L_epilogue
++	 mov.l	r0,@r1
++
++L_epilogue:
++	# Remove the space we pushed for the args
++	mov   r14,r15
++
++	lds.l  @r15+,pr
++	mov.l  @r15+,r14
++	mov.l  @r15+,r12
++	mov.l  @r15+,r10
++	mov.l  @r15+,r9
++	rts
++	 mov.l  @r15+,r8
++#else
++	# Save registers
++	mov.l	r8,@-r15
++	mov.l	r9,@-r15
++	mov.l	r10,@-r15
++	mov.l	r12,@-r15
++	mov.l	r14,@-r15
++	sts.l	pr,@-r15
++	mov	r15,r14
++
++	mov	r6,r8
++	mov	r7,r9
++
++	sub	r6,r15
++	add	#-16,r15
++	mov	#~7,r0
++	and	r0,r15
++
++	mov	r4,r0
++	jsr	@r0
++	 mov	r15,r4
++	mov	r0,r15
++
++	mov	r9,r1
++	shlr8	r9
++	shlr8	r9
++	shlr8	r9
++
++	mov	#FFI_TYPE_STRUCT,r2
++	cmp/eq	r2,r9
++	bf	1f
++#if STRUCT_VALUE_ADDRESS_WITH_ARG
++	mov.l	@r15+,r4
++	bra	2f
++	 mov	#5,r2
++#else
++	mov.l	@r15+,r10
++#endif
++1:
++	mov	#4,r2
++2:
++
++L_pass:
++	cmp/pl	r8
++	bf	L_call_it
++
++	mov	r1,r0
++	and	#3,r0
++
++L_pass_d:
++	cmp/eq	#FFI_FLOAT_DOUBLE,r0
++	bf	L_pass_i
++
++	mov	r15,r0
++	and	#7,r0
++	tst	r0,r0
++	bt	1f
++	add	#4,r15
++1:
++	mov	#8,r0
++	cmp/hs	r0,r2
++	bt/s	2f
++	 shlr2	r1
++	bsr	L_pop_d
++	 nop
++2:
++	add	#2,r2
++	bra	L_pass
++	 add	#-8,r8
++
++L_pop_d:
++	mov	r3,r0
++	add	r0,r0
++	add	r3,r0
++	add	#-12,r0
++	braf	r0
++	 nop
++	mov.l	@r15+,r4
++	rts
++	 mov.l	@r15+,r5
++	mov.l	@r15+,r5
++	rts
++	 mov.l	@r15+,r6
++	mov.l	@r15+,r6
++	rts
++	 mov.l	@r15+,r7
++	rts
++	 mov.l	@r15+,r7
++
++L_pass_i:
++	cmp/eq	#FFI_TYPE_INT,r0
++	bf	L_call_it
++
++	mov	#8,r0
++	cmp/hs	r0,r2
++	bt/s	2f
++	 shlr2	r1
++	bsr	L_pop_i
++	 nop
++2:
++	add	#1,r2
++	bra	L_pass
++	 add	#-4,r8
++
++L_pop_i:
++	mov	r2,r0
++	shll2	r0
++	add	#-16,r0
++	braf	r0
++	 nop
++	rts
++	 mov.l	@r15+,r4
++	rts
++	 mov.l	@r15+,r5
++	rts
++	 mov.l	@r15+,r6
++	rts
++	 mov.l	@r15+,r7
++
++L_call_it:
++	# call function
++#if (! STRUCT_VALUE_ADDRESS_WITH_ARG)
++	mov	r10, r2
++#endif
++	mov.l  @(28,r14),r1
++	jsr    @r1
++	 nop
++
++L_ret_d:
++	mov	#FFI_TYPE_DOUBLE,r2
++	cmp/eq	r2,r9
++	bf	L_ret_ll
++
++	mov.l	@(24,r14),r1
++	mov.l	r0,@r1
++	bra	L_epilogue
++	 mov.l	r1,@(4,r1)
++
++L_ret_ll:
++	mov	#FFI_TYPE_SINT64,r2
++	cmp/eq	r2,r9
++	bt/s	1f
++	 mov	#FFI_TYPE_UINT64,r2
++	cmp/eq	r2,r9
++	bf	L_ret_i
++
++1:
++	mov.l	@(24,r14),r2
++	mov.l	r0,@r2
++	add	#4,r1
++	bra	L_epilogue
++	 mov.l	r1,@r2
++
++L_ret_i:
++	mov	#FFI_TYPE_FLOAT,r2
++	cmp/eq	r2,r9
++	bt	1f
++	mov	#FFI_TYPE_INT,r2
++	cmp/eq	r2,r9
++	bf	L_epiret_none
++1:
++	mov.l	@(24,r14),r1
++	bra	L_epilogue
++	 mov.l	r0,@r1
++
++L_epilogue:
++	# Remove the space we pushed for the args
++	mov   r14,r15
++
++	lds.l  @r15+,pr
++	mov.l  @r15+,r14
++	mov.l  @r15+,r12
++	mov.l  @r15+,r10
++	mov.l  @r15+,r9
++	rts
++	 mov.l  @r15+,r8
++#endif
++
++.ffi_call_SYSV_end:
++        .size    CNAME(ffi_call_SYSV),.ffi_call_SYSV_end-CNAME(ffi_call_SYSV)
+diff -urN gcc-3.0.1.orig/libstdc++-v3/acinclude.m4 gcc-3.0.1/libstdc++-v3/acinclude.m4
+--- gcc-3.0.1.orig/libstdc++-v3/acinclude.m4	Thu Jul 26 13:24:58 2001
++++ gcc-3.0.1/libstdc++-v3/acinclude.m4	Mon Sep 10 13:00:56 2001
+@@ -1495,6 +1495,8 @@
+ 
+   # Passed down for canadian crosses.
+   if test x"$CANADIAN" = xyes; then
++    TOPLEVEL_INCLUDES=''
++  else
+     TOPLEVEL_INCLUDES='-I$(includedir)'
+   fi
+ 
+diff -urN gcc-3.0.1.orig/libstdc++-v3/aclocal.m4 gcc-3.0.1/libstdc++-v3/aclocal.m4
+--- gcc-3.0.1.orig/libstdc++-v3/aclocal.m4	Thu Jul 26 13:24:58 2001
++++ gcc-3.0.1/libstdc++-v3/aclocal.m4	Mon Sep 10 13:00:56 2001
+@@ -1507,6 +1507,8 @@
+ 
+   # Passed down for canadian crosses.
+   if test x"$CANADIAN" = xyes; then
++    TOPLEVEL_INCLUDES=''
++  else
+     TOPLEVEL_INCLUDES='-I$(includedir)'
+   fi
+ 
+diff -urN gcc-3.0.1.orig/libstdc++-v3/configure gcc-3.0.1/libstdc++-v3/configure
+--- gcc-3.0.1.orig/libstdc++-v3/configure	Mon Aug 13 17:21:28 2001
++++ gcc-3.0.1/libstdc++-v3/configure	Mon Sep 10 13:00:56 2001
+@@ -17124,6 +17124,8 @@
+ 
+   # Passed down for canadian crosses.
+   if test x"$CANADIAN" = xyes; then
++    TOPLEVEL_INCLUDES=''
++  else
+     TOPLEVEL_INCLUDES='-I$(includedir)'
+   fi
+ 
+diff -urN gcc-3.0.1.orig/libtool.m4 gcc-3.0.1/libtool.m4
+--- gcc-3.0.1.orig/libtool.m4	Sun May 20 13:57:40 2001
++++ gcc-3.0.1/libtool.m4	Mon Sep 10 13:00:56 2001
+@@ -597,7 +597,7 @@
+ # This must be Linux ELF.
+ linux-gnu*)
+   case $host_cpu in
+-  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* )
++  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* | sh* )
+     lt_cv_deplibs_check_method=pass_all ;;
+   *)
+     # glibc up to 2.1.1 does not perform some relocations on ARM

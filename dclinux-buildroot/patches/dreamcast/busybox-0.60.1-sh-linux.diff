@@ -1,0 +1,20 @@
+diff -urN busybox-0.60.1.orig/libbb/libbb.h busybox-0.60.1/libbb/libbb.h
+--- busybox-0.60.1.orig/libbb/libbb.h	Thu Aug 23 17:14:31 2001
++++ busybox-0.60.1/libbb/libbb.h	Fri Aug 31 15:29:04 2001
+@@ -308,11 +308,11 @@
+ # define SC_FORMAT "/dev/tts/%d"
+ #else
+ # define CURRENT_VC "/dev/tty0"
+-# define VC_1 "/dev/tty1"
+-# define VC_2 "/dev/tty2"
+-# define VC_3 "/dev/tty3"
+-# define VC_4 "/dev/tty4"
+-# define VC_5 "/dev/tty5"
++# define VC_1 NULL
++# define VC_2 NULL
++# define VC_3 NULL
++# define VC_4 NULL
++# define VC_5 NULL
+ # define SC_0 "/dev/ttyS0"
+ # define SC_1 "/dev/ttyS1"
+ # define VC_FORMAT "/dev/tty%d"

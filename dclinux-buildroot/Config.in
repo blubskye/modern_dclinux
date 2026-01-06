@@ -1,0 +1,4 @@
+# Custom packages for Dreamcast Linux
+# Uncomment when packages are added:
+# source "$BR2_EXTERNAL_DCLINUX_PATH/package/prboom-dclinux/Config.in"
+# source "$BR2_EXTERNAL_DCLINUX_PATH/package/xmame-dclinux/Config.in"
